@@ -24,6 +24,13 @@ use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\TodoController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\PerformanceReportController;
+use App\Http\Controllers\ActivitySetupController;
+use App\Http\Controllers\PromotionEventController;
+use App\Http\Controllers\EventBudgetController;
+use App\Http\Controllers\BulkSmsController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -80,6 +87,24 @@ Route::middleware(['auth', 'permission:todos.manage'])->prefix('crm')->group(fun
     Route::patch('todos/{todo}/complete', [TodoController::class, 'complete'])->name('todos.complete');
     Route::get('todo-subjects', [TodoController::class, 'subjects'])->name('todos.subjects');
 });
+Route::middleware(['auth', 'permission:contacts.manage'])->prefix('crm')->group(function () { Route::get('contacts',[ContactController::class,'index'])->name('contacts.index'); Route::get('contacts/create',[ContactController::class,'create'])->name('contacts.create'); Route::post('contacts',[ContactController::class,'store'])->name('contacts.store'); });
+Route::middleware(['auth', 'permission:organizations.manage'])->get('crm/organizations', [OrganizationController::class, 'index'])->name('organizations.index');
+Route::middleware(['auth', 'permission:performance-reports.view'])->get('crm/performance-report', [PerformanceReportController::class, 'index'])->name('performance.index');
+Route::middleware(['auth', 'permission:activity-setup.manage'])->prefix('crm/activity-setup')->group(function () {
+    Route::get('/', [ActivitySetupController::class, 'index'])->name('activity-setup.index');
+    Route::post('types', [ActivitySetupController::class, 'storeType'])->name('activity-setup.types.store');
+    Route::put('types/{activityType}', [ActivitySetupController::class, 'updateType'])->name('activity-setup.types.update');
+    Route::delete('types/{activityType}', [ActivitySetupController::class, 'destroyType'])->name('activity-setup.types.destroy');
+    Route::post('sub-types', [ActivitySetupController::class, 'storeSubType'])->name('activity-setup.sub-types.store');
+    Route::put('sub-types/{activitySubType}', [ActivitySetupController::class, 'updateSubType'])->name('activity-setup.sub-types.update');
+    Route::delete('sub-types/{activitySubType}', [ActivitySetupController::class, 'destroySubType'])->name('activity-setup.sub-types.destroy');
+    Route::post('subject-types', [ActivitySetupController::class, 'storeSubjectType'])->name('activity-setup.subject-types.store');
+    Route::put('subject-types/{activitySubjectType}', [ActivitySetupController::class, 'updateSubjectType'])->name('activity-setup.subject-types.update');
+    Route::delete('subject-types/{activitySubjectType}', [ActivitySetupController::class, 'destroySubjectType'])->name('activity-setup.subject-types.destroy');
+});
+Route::middleware(['auth', 'permission:events.manage'])->prefix('promotion')->group(function () { Route::get('events',[PromotionEventController::class,'index'])->name('events.index'); Route::get('events/create',[PromotionEventController::class,'create'])->name('events.create'); Route::post('events',[PromotionEventController::class,'store'])->name('events.store'); });
+Route::middleware(['auth', 'permission:budgets.manage'])->prefix('promotion')->group(function () { Route::get('budgets',[EventBudgetController::class,'index'])->name('budgets.index'); Route::get('budgets/create',[EventBudgetController::class,'create'])->name('budgets.create'); Route::post('budgets',[EventBudgetController::class,'store'])->name('budgets.store'); Route::get('events/{event}/budget-info',[EventBudgetController::class,'event'])->name('budgets.event'); });
+Route::middleware(['auth', 'permission:bulk-sms.manage'])->prefix('promotion')->group(function(){Route::get('bulk-sms',[BulkSmsController::class,'create'])->name('bulk-sms.create');Route::post('bulk-sms',[BulkSmsController::class,'store'])->name('bulk-sms.store');});
 Route::middleware(['auth', 'permission:purchases.manage'])->prefix('admin')->group(function () {
     Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show']);
 });

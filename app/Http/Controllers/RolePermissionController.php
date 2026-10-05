@@ -91,8 +91,12 @@ class RolePermissionController extends Controller
         $modules = [
             'dashboard' => ['Dashboard', 'Overview'],
             'activities' => ['Customer Relationship', 'Activities'],
+            'activity-setup' => ['Customer Relationship', 'Activity Setup'],
             'leads' => ['Customer Relationship', 'Leads'],
             'todos' => ['Customer Relationship', 'Task To-Do'],
+            'contacts' => ['Customer Relationship', 'Contacts'],
+            'organizations' => ['Customer Relationship', 'Organizations'],
+            'performance-reports' => ['Customer Relationship', 'Performance Report'],
             'customers' => ['Customer Relationship', 'Customers'],
             'suppliers' => ['Medicine & Inventory', 'Suppliers'],
             'brands' => ['Medicine & Inventory', 'Brands'],

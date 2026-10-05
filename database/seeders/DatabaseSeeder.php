@@ -16,9 +16,11 @@ class DatabaseSeeder extends Seeder
             // Security and account structure must exist before employee and purchase entries.
             RolesAndPermissionsSeeder::class,
             ActivityTypeSeeder::class,
+            ActivitySubjectTypeSeeder::class,
             CrmLeadLookupSeeder::class,
             TodoTypeSeeder::class,
             ContactLookupSeeder::class,
+            EventTypeSeeder::class,
             ChartOfAccountsSeeder::class,
 
             // Master catalogue data supplied for this pharmacy.
@@ -34,4 +36,7 @@ class DatabaseSeeder extends Seeder
             PharmacyMedicineRealQtoVSeeder::class,
 
             // Creates purchase invoices, batches, POS stock and accounting postings.
-            PharmacyCatalogPur
+            PharmacyCatalogPurchaseSeeder::class,
+        ]);
+    }
+}

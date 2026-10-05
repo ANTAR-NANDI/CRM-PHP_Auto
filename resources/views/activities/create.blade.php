@@ -12,14 +12,14 @@
             @csrf
             <div class="grid gap-x-7 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
                 <label class="block text-sm font-semibold text-slate-700">Type
-                    <select name="activity_type_id" x-model="typeId" @change="loadSubTypes" class="mt-2 block w-full rounded-md border-slate-300 py-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                    <select name="activity_type_id" x-model="typeId" @change="loadSubTypes" class="crm-select mt-2 block w-full rounded-md border-slate-300 py-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                         <option value="">Select activity</option>
                         @foreach($types as $type)<option value="{{ $type->id }}" @selected(old('activity_type_id') == $type->id)>{{ $type->name }}</option>@endforeach
                     </select>
                     @error('activity_type_id')<span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>@enderror
                 </label>
                 <label class="block text-sm font-semibold text-slate-700">Activity sub type
-                    <select name="activity_sub_type_id" x-model="subTypeId" :disabled="!typeId" class="mt-2 block w-full rounded-md border-slate-300 py-2.5 text-sm disabled:bg-slate-100 focus:border-indigo-500 focus:ring-indigo-500">
+                    <select name="activity_sub_type_id" x-model="subTypeId" :disabled="!typeId" class="crm-select mt-2 block w-full rounded-md border-slate-300 py-2.5 text-sm disabled:bg-slate-100 focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="" x-text="typeId ? 'Select subtype' : 'Select a type first'"></option>
                         <template x-for="subType in subTypes" :key="subType.id"><option :value="subType.id" x-text="subType.name"></option></template>
                     </select>
@@ -30,15 +30,17 @@
                     @error('from_at')<span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>@enderror
                 </label>
                 <label class="block text-sm font-semibold text-slate-700">Activity for
-                    <select name="subject_type" x-model="subjectType" @change="loadSubjects(true)" class="mt-2 block w-full rounded-md border-slate-300 py-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500"><option value="customer">Customer</option><option value="lead">Lead</option></select>
+                    <select name="subject_type" x-model="subjectType" @change="loadSubjects(true)" class="crm-select mt-2 block w-full rounded-md border-slate-300 py-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @foreach($subjectTypes as $subjectType)<option value="{{ $subjectType->key }}">{{ $subjectType->name }}</option>@endforeach
+                    </select>
                 </label>
                 <label class="block text-sm font-semibold text-slate-700">Activity with
                     <input type="hidden" name="activity_with" x-model="activityWith">
-                    <select name="subject_id" x-model="subjectId" @change="setActivityWith" class="mt-2 block w-full rounded-md border-slate-300 py-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="">Select customer</option>
+                    <select name="subject_id" x-model="subjectId" @change="setActivityWith" class="crm-select mt-2 block w-full rounded-md border-slate-300 py-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="" x-text="subjectType ? 'Select ' + selectedSubjectName().toLowerCase() : 'Select activity for first'"></option>
                         <template x-for="subject in subjects" :key="subject.id"><option :value="subject.id" x-text="subject.label"></option></template>
                     </select>
-                    <span class="mt-1 block text-xs text-slate-400">Loaded from your active customer list.</span>
+                    <span class="mt-1 block text-xs text-slate-400">Loaded live from the selected CRM module.</span>
                     @error('subject_id')<span class="mt-1 block text-xs text-rose-600">{{ $message }}</span>@enderror
                 </label>
                 <label class="block text-sm font-semibold text-slate-700">To date &amp; time
@@ -62,11 +64,12 @@
     <script>
         function activityForm() {
             return {
-                typeId: '{{ old('activity_type_id') }}', subTypeId: '{{ old('activity_sub_type_id') }}', subjectType: '{{ old('subject_type', 'customer') }}', subjectId: '{{ old('subject_id') }}', activityWith: '{{ old('activity_with') }}', subTypes: [], subjects: [],
+                typeId: '{{ old('activity_type_id') }}', subTypeId: '{{ old('activity_sub_type_id') }}', subjectType: '{{ old('subject_type', $defaultSubjectType) }}', subjectId: '{{ old('subject_id', $defaultSubjectId) }}', activityWith: '{{ old('activity_with') }}', subTypes: [], subjects: [], subjectTypeNames: @json($subjectTypes->pluck('name', 'key')),
                 init() { this.loadSubjects(); if (this.typeId) this.loadSubTypes(); },
                 async loadSubTypes() { this.subTypeId = ''; this.subTypes = this.typeId ? await (await fetch('/crm/activity-types/' + this.typeId + '/sub-types')).json() : []; },
                 async loadSubjects(clear = false) { if (clear) { this.subjectId = ''; this.activityWith = ''; } this.subjects = await (await fetch('{{ route('activities.subjects') }}?type=' + this.subjectType)).json(); },
                 setActivityWith() { this.activityWith = this.subjects.find(subject => String(subject.id) === String(this.subjectId))?.label || ''; },
+                selectedSubjectName() { return this.subjectTypeNames[this.subjectType] || 'record'; },
             }
         }
     </script>

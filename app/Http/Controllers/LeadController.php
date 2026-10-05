@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityType;
+use App\Models\Activity;
 use App\Models\Lead;
 use App\Models\Product;
 use App\Models\User;
@@ -17,11 +18,12 @@ class LeadController extends Controller
     {
         $filters = $request->validate(['segment' => ['nullable', 'integer'], 'product' => ['nullable', 'integer'], 'status' => ['nullable', 'integer'], 'pipeline' => ['nullable', 'integer'], 'owner' => ['nullable', 'integer'], 'search' => ['nullable', 'string', 'max:255']]);
         $leads = Lead::query()->with(['owner', 'product'])
-            ->leftJoin('crm_lead_statuses as status', 'leads.lead_status_id', '=', 'status.id')->leftJoin('crm_pipelines as pipeline', 'leads.pipeline_id', '=', 'pipeline.id')
-            ->select('leads.*', 'status.name as status_name', 'status.badge_color', 'pipeline.name as pipeline_name', 'pipeline.code as pipeline_code')
+            ->leftJoin('crm_lead_statuses as status', 'leads.lead_status_id', '=', 'status.id')->leftJoin('crm_pipelines as pipeline', 'leads.pipeline_id', '=', 'pipeline.id')->leftJoin('crm_colors as color', 'leads.color_id', '=', 'color.id')
+            ->select('leads.*', 'status.name as status_name', 'status.badge_color', 'pipeline.name as pipeline_name', 'pipeline.code as pipeline_code', 'color.name as color_name')
             ->when($filters['segment'] ?? null, fn ($q, $id) => $q->where('segment_id', $id))->when($filters['product'] ?? null, fn ($q, $id) => $q->where('product_id', $id))->when($filters['status'] ?? null, fn ($q, $id) => $q->where('lead_status_id', $id))->when($filters['pipeline'] ?? null, fn ($q, $id) => $q->where('pipeline_id', $id))->when($filters['owner'] ?? null, fn ($q, $id) => $q->where('owner_id', $id))
             ->when($filters['search'] ?? null, fn ($q, $term) => $q->where(fn ($match) => $match->where('leads.name', 'like', "%{$term}%")->orWhere('leads.phone', 'like', "%{$term}%")))->latest('lead_date')->paginate(20)->withQueryString();
-        return view('leads.index', ['leads' => $leads, 'filters' => $filters, 'lookups' => $this->lookups()]);
+        $lastActivities = Activity::query()->where('subject_type', 'lead')->whereIn('subject_id', $leads->getCollection()->pluck('id'))->latest('from_at')->get()->unique('subject_id')->keyBy('subject_id');
+        return view('leads.index', ['leads' => $leads, 'filters' => $filters, 'lookups' => $this->lookups(), 'lastActivities' => $lastActivities]);
     }
 
     public function create(): View { return view('leads.create', ['lookups' => $this->lookups()]); }
