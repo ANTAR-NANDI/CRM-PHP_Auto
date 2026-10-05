@@ -1,0 +1,8 @@
+<nav class="mb-6 flex flex-wrap gap-2 print:hidden">
+    <a href="{{ route('reports.index') }}" class="rounded-md px-4 py-2 text-sm font-semibold {{ request()->routeIs('reports.index') ? 'bg-[#203D9F] text-white shadow' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}">Overview</a>
+    <a href="{{ route('reports.purchases') }}" class="rounded-md px-4 py-2 text-sm font-semibold {{ request()->routeIs('reports.purchases') ? 'bg-[#203D9F] text-white shadow' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}">Purchase Report</a>
+    <a href="{{ route('reports.sales') }}" class="rounded-md px-4 py-2 text-sm font-semibold {{ request()->routeIs('reports.sales') ? 'bg-[#203D9F] text-white shadow' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}">Daily Sales</a>
+    <a href="{{ route('reports.product-supplier-sales') }}" class="rounded-md px-4 py-2 text-sm font-semibold {{ request()->routeIs('reports.product-supplier-sales') ? 'bg-[#203D9F] text-white shadow' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}">Product &amp; Supplier Sales</a>
+    <a href="{{ route('reports.stock') }}" class="rounded-md px-4 py-2 text-sm font-semibold {{ request()->routeIs('reports.stock') ? 'bg-[#203D9F] text-white shadow' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}">Stock Report</a>
+    <a href="{{ route('reports.needed') }}" class="rounded-md px-4 py-2 text-sm font-semibold {{ request()->routeIs('reports.needed') ? 'bg-[#203D9F] text-white shadow' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}">Shortage Report</a>
+</nav>
