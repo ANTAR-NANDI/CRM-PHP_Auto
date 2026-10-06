@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             // Security and account structure must exist before employee and purchase entries.
             RolesAndPermissionsSeeder::class,
+            DepartmentSeeder::class,
             ActivityTypeSeeder::class,
             ActivitySubjectTypeSeeder::class,
             CrmLeadLookupSeeder::class,

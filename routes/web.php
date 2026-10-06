@@ -42,6 +42,9 @@ use App\Http\Controllers\ChequeController;
 use App\Http\Controllers\SalesDocumentController;
 use App\Http\Controllers\SalesReturnController;
 use App\Http\Controllers\SalesAdjustmentController;
+use App\Http\Controllers\StoreController;
+use App\Http\Controllers\StorePositionController;
+use App\Http\Controllers\SystemSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -99,7 +102,11 @@ Route::middleware(['auth', 'permission:todos.manage'])->prefix('crm')->group(fun
     Route::get('todo-subjects', [TodoController::class, 'subjects'])->name('todos.subjects');
 });
 Route::middleware(['auth', 'permission:contacts.manage'])->prefix('crm')->group(function () { Route::get('contacts',[ContactController::class,'index'])->name('contacts.index'); Route::get('contacts/create',[ContactController::class,'create'])->name('contacts.create'); Route::post('contacts',[ContactController::class,'store'])->name('contacts.store'); });
-Route::middleware(['auth', 'permission:organizations.manage'])->get('crm/organizations', [OrganizationController::class, 'index'])->name('organizations.index');
+Route::middleware(['auth', 'permission:organizations.manage'])->prefix('crm/organizations')->group(function () {
+    Route::get('/', [OrganizationController::class, 'index'])->name('organizations.index');
+    Route::get('create', [OrganizationController::class, 'create'])->name('organizations.create');
+    Route::post('/', [OrganizationController::class, 'store'])->name('organizations.store');
+});
 Route::middleware(['auth', 'permission:performance-reports.view'])->get('crm/performance-report', [PerformanceReportController::class, 'index'])->name('performance.index');
 Route::middleware(['auth', 'permission:activity-setup.manage'])->prefix('crm/activity-setup')->group(function () {
     Route::get('/', [ActivitySetupController::class, 'index'])->name('activity-setup.index');
@@ -182,12 +189,26 @@ Route::middleware(['auth', 'permission:reports.view'])->prefix('admin')->group(f
     Route::get('reports/balance-sheet', [FinancialReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
 });
 
-Route::middleware(['auth', 'permission:employees.manage'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'permission:config.employees.manage'])->prefix('admin')->group(function () {
     Route::resource('employees', EmployeeController::class)->except(['show', 'destroy']);
 });
 
-Route::middleware(['auth', 'permission:settings.manage'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'permission:config.roles.manage'])->prefix('admin')->group(function () {
     Route::resource('roles', RolePermissionController::class)->except(['show']);
+});
+
+Route::middleware(['auth', 'permission:config.stores.manage'])->prefix('admin')->group(function () {
+    Route::resource('stores', StoreController::class)->except(['show']);
+});
+
+Route::middleware(['auth', 'permission:config.store-positions.manage'])->prefix('admin')->group(function () {
+    Route::resource('store-positions', StorePositionController::class)->except(['show']);
+});
+
+Route::middleware(['auth', 'permission:system-settings.manage'])->prefix('admin/system-settings')->group(function () {
+    Route::get('/', [SystemSettingsController::class, 'index'])->name('system-settings.index');
+    Route::post('{setting}', [SystemSettingsController::class, 'store'])->name('system-settings.store');
+    Route::put('{setting}/{id}', [SystemSettingsController::class, 'update'])->name('system-settings.update');
 });
 
 require __DIR__.'/auth.php';

@@ -1,0 +1,1 @@
+<x-app-layout><x-slot name="header"><h1 class="text-xl font-bold">Edit Store Position</h1></x-slot><section class="rounded-lg border bg-white p-6 shadow-sm">@include('admin.store-positions._form', ['editing' => true])</section></x-app-layout>

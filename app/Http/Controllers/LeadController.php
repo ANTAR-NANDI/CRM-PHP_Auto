@@ -32,7 +32,10 @@ class LeadController extends Controller
     {
         $data = $request->validate(['name'=>['required','string','max:255'],'phone'=>['nullable','string','max:50'],'alternate_phone'=>['nullable','string','max:50'],'email'=>['nullable','email','max:255'],'address'=>['nullable','string','max:2000'],'job_title'=>['nullable','string','max:255'],'organization_id'=>['nullable','exists:crm_organizations,id'],'segment_id'=>['nullable','exists:crm_segments,id'],'product_id'=>['nullable','exists:products,id'],'color_id'=>['nullable','exists:crm_colors,id'],'lead_status_id'=>['required','exists:crm_lead_statuses,id'],'pipeline_id'=>['nullable','exists:crm_pipelines,id'],'owner_id'=>['required','exists:users,id'],'activity_type_id'=>['nullable','exists:activity_types,id'],'lead_date'=>['required','date'],'source_id'=>['nullable','exists:crm_sources,id'],'source_detail'=>['nullable','string','max:255'],'remarks'=>['nullable','string','max:5000'],'business_card'=>['nullable','image','max:5120']]);
         if ($request->hasFile('business_card')) $data['business_card_path'] = $request->file('business_card')->store('lead-business-cards', 'public');
-        unset($data['business_card']); Lead::create($data);
+        unset($data['business_card']);
+        $data['created_by'] = $request->user()->id;
+        $data['store_id'] = $request->user()->store_id;
+        Lead::create($data);
         return redirect()->route('leads.index')->with('success', 'Lead saved successfully.');
     }
 

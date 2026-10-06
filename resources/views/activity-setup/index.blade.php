@@ -5,7 +5,7 @@
 
     <div class="grid gap-6 xl:grid-cols-[360px_1fr]">
         <section class="space-y-6">
-            <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div id="sub-types" class="scroll-mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 class="font-bold text-slate-800">Activity type</h2>
                 <form method="POST" action="{{ route('activity-setup.types.store') }}" class="mt-4 space-y-4">@csrf
                     <label class="block text-sm font-semibold text-slate-700">Type name<input name="name" required placeholder="Example: Facebook" class="mt-2 block w-full rounded-md border-slate-300 py-2.5 text-sm"></label>

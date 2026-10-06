@@ -30,6 +30,9 @@ class User extends Authenticatable
         'joining_date',
         'salary',
         'address',
+        'store_id',
+        'store_position_id',
+        'department_id',
         'chart_of_account_id',
         'password',
         'role',
@@ -70,6 +73,21 @@ class User extends Authenticatable
     public function account(): BelongsTo
     {
         return $this->belongsTo(ChartOfAccount::class, 'chart_of_account_id');
+    }
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
+    }
+
+    public function storePosition(): BelongsTo
+    {
+        return $this->belongsTo(StorePosition::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     /**

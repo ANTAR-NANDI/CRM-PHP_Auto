@@ -20,6 +20,8 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $permissions = [
             'dashboard.view', 'employees.manage',
+            'config.roles.manage', 'config.employees.manage', 'config.users.manage', 'config.stores.manage', 'config.store-positions.manage',
+            'system-settings.manage',
             'suppliers.manage', 'brands.manage', 'generic-names.manage',
             'products.view', 'products.manage', 'purchases.manage', 'customers.manage', 'stock.adjust',
             'pos.access', 'sales.view-own', 'sales.view-all', 'sales.return',
@@ -40,7 +42,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'dashboard.view', 'employees.manage', 'suppliers.manage', 'brands.manage',
             'generic-names.manage', 'products.view', 'products.manage', 'purchases.manage',
             'customers.manage', 'stock.adjust', 'pos.access', 'sales.view-own', 'sales.view-all',
-            'sales.return', 'reports.view', 'accounts.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'bulk-sms.manage',
+            'sales.return', 'reports.view', 'accounts.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'bulk-sms.manage', 'config.employees.manage', 'config.users.manage', 'config.stores.manage', 'config.store-positions.manage',
         ]);
         $cashier->syncPermissions([
             'dashboard.view', 'suppliers.manage', 'products.view', 'purchases.manage',

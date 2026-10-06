@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Store;
+use App\Models\StorePosition;
+use App\Models\Department;
 use App\Services\PartyAccountService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +21,7 @@ class EmployeeController extends Controller
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search'));
-        $employees = User::query()->with('roles')
+        $employees = User::query()->with(['roles', 'store', 'storePosition'])
             ->when($search, fn ($query) => $query->where(fn ($inner) => $inner
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
@@ -31,7 +34,7 @@ class EmployeeController extends Controller
 
     public function create(): View
     {
-        return view('admin.employees.create', ['roles' => Role::query()->orderBy('name')->get()]);
+        return view('admin.employees.create', $this->formData());
     }
 
     public function store(Request $request): RedirectResponse
@@ -52,8 +55,7 @@ class EmployeeController extends Controller
     {
         return view('admin.employees.edit', [
             'employee' => $employee,
-            'roles' => Role::query()->orderBy('name')->get(),
-        ]);
+        ] + $this->formData());
     }
 
     public function update(Request $request, User $employee): RedirectResponse
@@ -83,12 +85,19 @@ class EmployeeController extends Controller
             'joining_date' => ['required', 'date'],
             'salary' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
             'address' => ['nullable', 'string', 'max:1000'],
+            'store_id' => ['nullable', Rule::exists('stores', 'id')],
+            'store_position_id' => ['nullable', Rule::exists('store_positions', 'id')],
+            'department_id' => ['nullable', Rule::exists('departments', 'id')],
             'role' => ['required', Rule::exists('roles', 'name')->where('guard_name', 'web')],
             'password' => [$employee ? 'nullable' : 'required', 'confirmed', Password::min(8)],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $userData = collect($validated)->only(['name', 'email', 'phone', 'designation', 'joining_date', 'salary', 'address', 'password'])->toArray();
+        if (! empty($validated['store_position_id']) && StorePosition::query()->whereKey($validated['store_position_id'])->value('store_id') != ($validated['store_id'] ?? null)) {
+            throw ValidationException::withMessages(['store_position_id' => 'The selected position does not belong to the selected store.']);
+        }
+
+        $userData = collect($validated)->only(['name', 'email', 'phone', 'designation', 'joining_date', 'salary', 'address', 'store_id', 'store_position_id', 'department_id', 'password'])->toArray();
         if (empty($userData['password'])) {
             unset($userData['password']);
         }
@@ -96,5 +105,15 @@ class EmployeeController extends Controller
         $userData['is_active'] = $request->boolean('is_active');
 
         return ['employee' => $userData, 'role' => $validated['role']];
+    }
+
+    private function formData(): array
+    {
+        return [
+            'roles' => Role::query()->orderBy('name')->get(),
+            'stores' => Store::query()->where('is_active', true)->orderBy('name')->get(),
+            'positions' => StorePosition::query()->with('store')->where('is_active', true)->orderBy('name')->get(),
+            'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(),
+        ];
     }
 }

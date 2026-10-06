@@ -1,0 +1,1 @@
+<x-app-layout><x-slot name="header"><h1 class="text-xl font-bold">Add Store</h1></x-slot><section class="rounded-lg border bg-white p-6 shadow-sm">@include('admin.stores._form')</section></x-app-layout>

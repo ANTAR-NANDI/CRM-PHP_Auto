@@ -10,11 +10,14 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\Organization;
+use App\Models\Todo;
+use App\Models\TodoType;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -55,6 +58,7 @@ class ActivityController extends Controller
             'subjectTypes' => $subjectTypes,
             'defaultSubjectType' => $defaultSubjectType,
             'defaultSubjectId' => $request->query('subject_id'),
+            'todoTypes' => TodoType::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -70,6 +74,11 @@ class ActivityController extends Controller
             'to_at' => ['nullable', 'date', 'after_or_equal:from_at'],
             'remarks' => ['nullable', 'string', 'max:5000'],
             'keep_todo' => ['nullable', 'boolean'],
+            'todo_type_id' => ['required_if:keep_todo,1', 'nullable', 'exists:todo_types,id'],
+            'todo_due_at' => ['required_if:keep_todo,1', 'nullable', 'date'],
+            'todo_remind_before_minutes' => ['required_if:keep_todo,1', 'nullable', Rule::in([0, 5, 10, 15, 30, 60, 1440])],
+            'todo_note' => ['nullable', 'string', 'max:5000'],
+            'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
             'attachment' => ['nullable', 'image', 'max:5120'],
         ]);
 
@@ -88,7 +97,25 @@ class ActivityController extends Controller
         $data['keep_todo'] = $request->boolean('keep_todo');
         if ($request->hasFile('attachment')) $data['attachment_path'] = $request->file('attachment')->store('activity-attachments', 'public');
         unset($data['attachment']);
-        Activity::create($data);
+
+        DB::transaction(function () use ($data, $request) {
+            $activityData = collect($data)->except(['todo_type_id', 'todo_due_at', 'todo_remind_before_minutes', 'todo_note'])->all();
+            Activity::create($activityData);
+
+            if ($data['keep_todo']) {
+                Todo::create([
+                    'todo_type_id' => $data['todo_type_id'],
+                    'assigned_to' => $request->user()->id,
+                    'subject_type' => $data['subject_type'],
+                    'subject_id' => $data['subject_id'] ?? null,
+                    'task_with' => $data['activity_with'] ?? null,
+                    'due_at' => $data['todo_due_at'],
+                    'priority' => $data['priority'],
+                    'remind_before_minutes' => $data['todo_remind_before_minutes'],
+                    'note' => $data['todo_note'] ?? null,
+                ]);
+            }
+        });
 
         return redirect()->route('activities.index')->with('success', 'Activity saved successfully.');
     }

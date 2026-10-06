@@ -89,6 +89,12 @@ class RolePermissionController extends Controller
     private function permissionsByModule(): array
     {
         $modules = [
+            'config.roles.manage' => ['Config', 'User Role'],
+            'config.employees.manage' => ['Config', 'Employee'],
+            'config.users.manage' => ['Config', 'New User / User'],
+            'config.stores.manage' => ['Config', 'Store'],
+            'config.store-positions.manage' => ['Config', 'Store Position'],
+            'system-settings.manage' => ['System Settings', 'Master Data'],
             'dashboard' => ['Dashboard', 'Overview'],
             'activities' => ['Customer Relationship', 'Activities'],
             'activity-setup' => ['Customer Relationship', 'Activity Setup'],
@@ -120,7 +126,7 @@ class RolePermissionController extends Controller
 
         $grouped = [];
         Permission::query()->where('guard_name', 'web')->orderBy('name')->get()->each(function (Permission $permission) use (&$grouped, $modules) {
-            [$module, $subModule] = $modules[explode('.', $permission->name)[0]] ?? ['Other', 'General'];
+            [$module, $subModule] = $modules[$permission->name] ?? $modules[explode('.', $permission->name)[0]] ?? ['Other', 'General'];
             $grouped[$module][$subModule][] = $permission;
         });
 
