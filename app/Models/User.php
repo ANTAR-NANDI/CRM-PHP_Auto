@@ -89,4 +89,12 @@ class User extends Authenticatable
         return in_array($this->role, $roles, true);
     }
 
+    /** System administrators always retain access while module permissions evolve. */
+    public function isAdministrator(): bool
+    {
+        return $this->hasRole('admin')
+            || in_array(strtolower((string) $this->role), ['admin', 'administrator', 'system admin'], true)
+            || strtolower((string) $this->designation) === 'system admin';
+    }
+
 }

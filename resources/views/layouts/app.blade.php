@@ -4,6 +4,7 @@
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}"><title>Pharmacy Admin</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.min.css">
 </head>
 <body class="bg-[#f3f5fb] font-sans text-slate-800 antialiased">
 <div x-data="{ mobileNavOpen: false }" @keydown.escape.window="mobileNavOpen = false" class="min-h-screen print:pl-0 lg:pl-60">
@@ -27,5 +28,16 @@
         </div></main>
     </div>
 </div>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        $('.js-data-table').each(function () {
+            if (!$.fn.dataTable.isDataTable(this)) {
+                $(this).DataTable({ pageLength: 25, lengthMenu: [10, 25, 50, 100], order: [] });
+            }
+        });
+    });
+</script>
 </body>
 </html>

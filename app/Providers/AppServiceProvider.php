@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Supplier;
 use App\Services\PartyAccountService;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::before(fn ($user) => $user->isAdministrator() ? true : null);
         Customer::created(fn (Customer $customer) => app(PartyAccountService::class)->forCustomer($customer));
         Customer::updated(fn (Customer $customer) => $customer->wasChanged('name') ? app(PartyAccountService::class)->forCustomer($customer) : null);
         Supplier::created(fn (Supplier $supplier) => app(PartyAccountService::class)->forSupplier($supplier));

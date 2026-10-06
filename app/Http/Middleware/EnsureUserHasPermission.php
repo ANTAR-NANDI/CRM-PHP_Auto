@@ -16,7 +16,7 @@ class EnsureUserHasPermission
     {
         $user = $request->user();
 
-        if (! $user || ! $user->hasAllPermissions($permissions)) {
+        if (! $user || (! $user->isAdministrator() && ! $user->hasAllPermissions($permissions))) {
             abort(403, 'You do not have permission to access this module.');
         }
 

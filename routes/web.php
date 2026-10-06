@@ -31,6 +31,17 @@ use App\Http\Controllers\ActivitySetupController;
 use App\Http\Controllers\PromotionEventController;
 use App\Http\Controllers\EventBudgetController;
 use App\Http\Controllers\BulkSmsController;
+use App\Http\Controllers\PreEventPlanController;
+use App\Http\Controllers\AgendaController;
+use App\Http\Controllers\MeetingController;
+use App\Http\Controllers\SalesTargetController;
+use App\Http\Controllers\CustomerVehicleSaleController;
+use App\Http\Controllers\DealerSaleController;
+use App\Http\Controllers\SalesCollectionController;
+use App\Http\Controllers\ChequeController;
+use App\Http\Controllers\SalesDocumentController;
+use App\Http\Controllers\SalesReturnController;
+use App\Http\Controllers\SalesAdjustmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -104,7 +115,17 @@ Route::middleware(['auth', 'permission:activity-setup.manage'])->prefix('crm/act
 });
 Route::middleware(['auth', 'permission:events.manage'])->prefix('promotion')->group(function () { Route::get('events',[PromotionEventController::class,'index'])->name('events.index'); Route::get('events/create',[PromotionEventController::class,'create'])->name('events.create'); Route::post('events',[PromotionEventController::class,'store'])->name('events.store'); });
 Route::middleware(['auth', 'permission:budgets.manage'])->prefix('promotion')->group(function () { Route::get('budgets',[EventBudgetController::class,'index'])->name('budgets.index'); Route::get('budgets/create',[EventBudgetController::class,'create'])->name('budgets.create'); Route::post('budgets',[EventBudgetController::class,'store'])->name('budgets.store'); Route::get('events/{event}/budget-info',[EventBudgetController::class,'event'])->name('budgets.event'); });
-Route::middleware(['auth', 'permission:bulk-sms.manage'])->prefix('promotion')->group(function(){Route::get('bulk-sms',[BulkSmsController::class,'create'])->name('bulk-sms.create');Route::post('bulk-sms',[BulkSmsController::class,'store'])->name('bulk-sms.store');});
+Route::middleware(['auth', 'permission:bulk-sms.manage'])->prefix('promotion')->group(function(){Route::get('bulk-sms',[BulkSmsController::class,'create'])->name('bulk-sms.create');Route::post('bulk-sms',[BulkSmsController::class,'store'])->name('bulk-sms.store');Route::get('sms-send-list',[BulkSmsController::class,'index'])->name('bulk-sms.index');});
+Route::middleware(['auth', 'permission:pre-event-plans.manage'])->prefix('planning')->group(function(){Route::get('pre-event-plans',[PreEventPlanController::class,'index'])->name('pre-event-plans.index');Route::get('pre-event-plans/create',[PreEventPlanController::class,'create'])->name('pre-event-plans.create');Route::post('pre-event-plans',[PreEventPlanController::class,'store'])->name('pre-event-plans.store');});
+Route::middleware(['auth', 'permission:agendas.manage'])->prefix('planning')->group(function(){Route::get('agendas',[AgendaController::class,'index'])->name('agendas.index');Route::get('agendas/create',[AgendaController::class,'create'])->name('agendas.create');Route::post('agendas',[AgendaController::class,'store'])->name('agendas.store');});
+Route::middleware(['auth', 'permission:meetings.manage'])->prefix('planning')->group(function(){Route::get('meetings',[MeetingController::class,'index'])->name('meetings.index');Route::get('meetings/create',[MeetingController::class,'create'])->name('meetings.create');Route::post('meetings',[MeetingController::class,'store'])->name('meetings.store');});
+Route::middleware(['auth', 'permission:sales-targets.manage'])->prefix('sales')->group(function(){Route::get('targets',[SalesTargetController::class,'index'])->name('sales-targets.index');Route::get('targets/create',[SalesTargetController::class,'create'])->name('sales-targets.create');Route::post('targets',[SalesTargetController::class,'store'])->name('sales-targets.store');});
+Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('customer-sales',[CustomerVehicleSaleController::class,'index'])->name('customer-sales.index');Route::get('customer-sales/create',[CustomerVehicleSaleController::class,'create'])->name('customer-sales.create');Route::post('customer-sales',[CustomerVehicleSaleController::class,'store'])->name('customer-sales.store');});
+Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('dealer-sales/create',[DealerSaleController::class,'create'])->name('dealer-sales.create');Route::post('dealer-sales',[DealerSaleController::class,'store'])->name('dealer-sales.store');});
+Route::middleware(['auth','permission:sales.manage'])->prefix('sales')->group(function(){Route::get('collections',[SalesCollectionController::class,'index'])->name('sales-collections.index');Route::get('collections/create',[SalesCollectionController::class,'create'])->name('sales-collections.create');Route::post('collections',[SalesCollectionController::class,'store'])->name('sales-collections.store');Route::get('cheques',[ChequeController::class,'index'])->name('cheques.index');Route::post('cheques',[ChequeController::class,'store'])->name('cheques.store');});
+Route::middleware(['auth','permission:sales.manage'])->prefix('sales/documents')->group(function(){Route::get('/',[SalesDocumentController::class,'index'])->name('sales-documents.index');Route::get('create',[SalesDocumentController::class,'create'])->name('sales-documents.create');Route::post('/',[SalesDocumentController::class,'store'])->name('sales-documents.store');Route::get('{id}/download',[SalesDocumentController::class,'download'])->name('sales-documents.download');Route::delete('{id}',[SalesDocumentController::class,'destroy'])->name('sales-documents.destroy');});
+Route::middleware(['auth','permission:sales.manage'])->prefix('sales/returns')->group(function(){Route::get('/',[SalesReturnController::class,'index'])->name('sales-returns.index');Route::get('create',[SalesReturnController::class,'create'])->name('sales-returns.create');Route::post('/',[SalesReturnController::class,'store'])->name('sales-returns.store');});
+Route::middleware(['auth','permission:sales.manage'])->prefix('sales/adjustments')->group(function(){Route::get('create',[SalesAdjustmentController::class,'create'])->name('sales-adjustments.create');Route::post('/',[SalesAdjustmentController::class,'store'])->name('sales-adjustments.store');});
 Route::middleware(['auth', 'permission:purchases.manage'])->prefix('admin')->group(function () {
     Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show']);
 });

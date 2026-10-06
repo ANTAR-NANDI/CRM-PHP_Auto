@@ -23,7 +23,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'suppliers.manage', 'brands.manage', 'generic-names.manage',
             'products.view', 'products.manage', 'purchases.manage', 'customers.manage', 'stock.adjust',
             'pos.access', 'sales.view-own', 'sales.view-all', 'sales.return',
-            'reports.view', 'accounts.manage', 'settings.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'events.manage', 'budgets.manage',
+            'reports.view', 'accounts.manage', 'settings.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'events.manage', 'budgets.manage', 'bulk-sms.manage', 'pre-event-plans.manage', 'agendas.manage', 'meetings.manage', 'sales-targets.manage', 'sales.manage',
         ];
 
         foreach ($permissions as $permission) {
@@ -40,11 +40,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'dashboard.view', 'employees.manage', 'suppliers.manage', 'brands.manage',
             'generic-names.manage', 'products.view', 'products.manage', 'purchases.manage',
             'customers.manage', 'stock.adjust', 'pos.access', 'sales.view-own', 'sales.view-all',
-            'sales.return', 'reports.view', 'accounts.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view',
+            'sales.return', 'reports.view', 'accounts.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'bulk-sms.manage',
         ]);
         $cashier->syncPermissions([
             'dashboard.view', 'suppliers.manage', 'products.view', 'purchases.manage',
-            'customers.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'pos.access', 'sales.view-own', 'sales.view-all',
+            'customers.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'bulk-sms.manage', 'pos.access', 'sales.view-own', 'sales.view-all',
         ]);
         $salesperson->syncPermissions(['dashboard.view', 'products.view', 'activities.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'pos.access', 'sales.view-own']);
 
