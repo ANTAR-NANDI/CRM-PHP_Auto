@@ -209,6 +209,7 @@ Route::middleware(['auth', 'permission:system-settings.manage'])->prefix('admin/
     Route::get('/', [SystemSettingsController::class, 'index'])->name('system-settings.index');
     Route::post('{setting}', [SystemSettingsController::class, 'store'])->name('system-settings.store');
     Route::put('{setting}/{id}', [SystemSettingsController::class, 'update'])->name('system-settings.update');
+    Route::delete('{setting}/{id}', [SystemSettingsController::class, 'destroy'])->name('system-settings.destroy');
 });
 
 require __DIR__.'/auth.php';

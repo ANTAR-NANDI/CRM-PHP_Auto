@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.min.css">
 </head>
 <body class="bg-[#f3f5fb] font-sans text-slate-800 antialiased">
-<div x-data="{ mobileNavOpen: false }" @keydown.escape.window="mobileNavOpen = false" class="min-h-screen print:pl-0 lg:pl-60">
+<div x-data="{ mobileNavOpen: false }" @keydown.escape.window="mobileNavOpen = false" class="min-h-screen print:pl-0 lg:pl-64">
     @include('layouts.navigation')
     <div x-cloak x-show="mobileNavOpen" x-transition.opacity @click="mobileNavOpen = false" class="fixed inset-0 z-20 bg-slate-950/55 backdrop-blur-[1px] lg:hidden print:hidden" aria-hidden="true"></div>
     <div class="flex min-h-screen flex-col">

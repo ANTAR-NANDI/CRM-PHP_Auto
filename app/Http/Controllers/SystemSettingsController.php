@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,20 @@ class SystemSettingsController extends Controller
         DB::table($meta['table'])->where('id', $id)->update($data + ['updated_at' => now()]);
 
         return back()->with('success', $meta['label'].' updated successfully.');
+    }
+
+    public function destroy(string $setting, int $id): RedirectResponse
+    {
+        $meta = $this->setting($setting);
+        abort_unless(DB::table($meta['table'])->where('id', $id)->exists(), 404);
+
+        try {
+            DB::table($meta['table'])->where('id', $id)->delete();
+        } catch (QueryException) {
+            return back()->with('error', 'This '.$meta['label'].' cannot be deleted because it is still in use.');
+        }
+
+        return back()->with('success', $meta['label'].' deleted successfully.');
     }
 
     private function setting(string $key): array

@@ -18,7 +18,18 @@ class DealerSaleController extends Controller
             'nextSaleNo' => 'DLS-'.now()->format('ymdHis'),
             'suppliers' => Supplier::orderBy('name')->get(['id', 'name']),
             'customers' => Customer::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'products' => Product::orderBy('name')->get(['id', 'name', 'selling_price']),
+            'products' => Product::query()
+                ->select(['id', 'name'])
+                ->selectSub(
+                    DB::table('medicine_batches')
+                        ->select('sale_price')
+                        ->whereColumn('medicine_batches.product_id', 'products.id')
+                        ->orderByDesc('id')
+                        ->limit(1),
+                    'selling_price'
+                )
+                ->orderBy('name')
+                ->get(),
             'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(),
             'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);

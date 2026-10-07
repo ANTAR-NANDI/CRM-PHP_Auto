@@ -16,7 +16,36 @@
                     @if($setting['code'])<input name="code" placeholder="Code (optional)" class="block w-full rounded-md border-slate-300 py-2.5 text-sm">@endif
                     <input type="hidden" name="is_active" value="1"><button class="rounded-md bg-[#1f7d88] px-4 py-2 text-sm font-semibold text-white">Add</button>
                 </form>
-                <div class="divide-y divide-slate-100">@forelse($records[$key] as $record)<div x-data="{ editing: false }" class="p-4"><div class="flex items-center justify-between gap-3"><div><p class="font-semibold text-slate-800">{{ $record->name }}</p>@if($setting['code'])<p class="text-xs text-slate-400">{{ $record->code ?: 'No code' }}</p>@endif</div><div class="flex items-center gap-2"><span class="rounded-full px-2 py-1 text-xs {{ $record->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ $record->is_active ? 'Active' : 'Inactive' }}</span><button type="button" @click="editing = !editing" class="text-xs font-bold text-indigo-700">Edit</button></div></div><form x-cloak x-show="editing" method="POST" action="{{ route('system-settings.update', [$key, $record->id]) }}" class="mt-3 space-y-2 rounded-md bg-slate-50 p-3">@csrf @method('PUT')<input name="name" value="{{ $record->name }}" required class="block w-full rounded border-slate-300 py-2 text-sm">@if($setting['code'])<input name="code" value="{{ $record->code }}" class="block w-full rounded border-slate-300 py-2 text-sm">@endif<label class="flex items-center gap-2 text-xs"><input type="checkbox" name="is_active" value="1" @checked($record->is_active)> Active</label><button class="text-xs font-bold text-slate-700">Save changes</button></form></div>@empty<div class="p-6 text-sm text-slate-500">No values added yet.</div>@endforelse</div>
+                <div class="divide-y divide-slate-100">
+                    @forelse($records[$key] as $record)
+                        <div x-data="{ editing: false }" class="p-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="font-semibold text-slate-800">{{ $record->name }}</p>
+                                    @if($setting['code'])<p class="text-xs text-slate-400">{{ $record->code ?: 'No code' }}</p>@endif
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="rounded-full px-2 py-1 text-xs {{ $record->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ $record->is_active ? 'Active' : 'Inactive' }}</span>
+                                    <button type="button" @click="editing = !editing" class="rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100" x-text="editing ? 'Cancel' : 'Edit'"></button>
+                                    <form method="POST" action="{{ route('system-settings.destroy', [$key, $record->id]) }}" onsubmit="return confirm('Delete this {{ strtolower($setting['label']) }}? This cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100">Delete</button>
+                                    </form>
+                                </div>
+                            </div>
+                            <form x-cloak x-show="editing" method="POST" action="{{ route('system-settings.update', [$key, $record->id]) }}" class="mt-3 space-y-2 rounded-md bg-slate-50 p-3">
+                                @csrf @method('PUT')
+                                <input name="name" value="{{ $record->name }}" required class="block w-full rounded border-slate-300 py-2 text-sm">
+                                @if($setting['code'])<input name="code" value="{{ $record->code }}" class="block w-full rounded border-slate-300 py-2 text-sm">@endif
+                                <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="is_active" value="1" @checked($record->is_active)> Active</label>
+                                <button class="text-xs font-bold text-slate-700">Save changes</button>
+                            </form>
+                        </div>
+                    @empty
+                        <div class="p-6 text-sm text-slate-500">No values added yet.</div>
+                    @endforelse
+                </div>
             </section>
         @endforeach
     </div>
