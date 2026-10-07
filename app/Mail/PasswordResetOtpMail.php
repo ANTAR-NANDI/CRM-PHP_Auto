@@ -18,7 +18,7 @@ class PasswordResetOtpMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Your Pharmacy password reset code');
+        return new Envelope(subject: 'Your W3 CRM password reset code');
     }
 
     public function content(): Content

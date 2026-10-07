@@ -26,6 +26,17 @@ class SystemSettingsController extends Controller
         ]);
     }
 
+    public function show(string $setting): View
+    {
+        $meta = $this->setting($setting);
+
+        return view('admin.system-settings.show', [
+            'settingKey' => $setting,
+            'setting' => $meta,
+            'records' => DB::table($meta['table'])->orderBy('name')->get(),
+        ]);
+    }
+
     public function store(Request $request, string $setting): RedirectResponse
     {
         $meta = $this->setting($setting);

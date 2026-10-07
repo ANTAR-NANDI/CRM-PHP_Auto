@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Customer;
 use App\Models\Supplier;
+use App\Models\User;
 use App\Services\PartyAccountService;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
@@ -28,5 +29,7 @@ class AppServiceProvider extends ServiceProvider
         Customer::updated(fn (Customer $customer) => $customer->wasChanged('name') ? app(PartyAccountService::class)->forCustomer($customer) : null);
         Supplier::created(fn (Supplier $supplier) => app(PartyAccountService::class)->forSupplier($supplier));
         Supplier::updated(fn (Supplier $supplier) => $supplier->wasChanged('name') ? app(PartyAccountService::class)->forSupplier($supplier) : null);
+        User::created(fn (User $user) => app(PartyAccountService::class)->forEmployee($user));
+        User::updated(fn (User $user) => $user->wasChanged('name') ? app(PartyAccountService::class)->forEmployee($user) : null);
     }
 }

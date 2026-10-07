@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\GenericName;
 use App\Models\Product;
+use App\Models\ItemCategory;
+use App\Models\ProductOpeningStock;
+use App\Models\Store;
+use App\Models\StorePosition;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -17,11 +20,10 @@ class ProductController extends Controller
         $search = trim((string) $request->query('search'));
 
         $products = Product::query()
-            ->with(['genericName'])
-            ->withSum('batches as stock_quantity', 'quantity_available')
+            ->with(['itemCategory'])->withSum('batches as stock_quantity', 'quantity_available')
             ->when($search, fn ($query) => $query->where(fn ($inner) => $inner
                 ->where('name', 'like', "%{$search}%")
-                ->orWhere('barcode', 'like', "%{$search}%")))
+                ->orWhere('barcode', 'like', "%{$search}%")->orWhere('part_no', 'like', "%{$search}%")))
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();
@@ -36,9 +38,15 @@ class ProductController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Product::create($this->validated($request));
+        $data = $this->validated($request);
+        DB::transaction(function () use ($data): void {
+            $product = Product::create(collect($data)->except(['opening_stocks', 'opening_date'])->all());
+            foreach ($data['opening_stocks'] ?? [] as $stock) {
+                if (!empty($stock['store_id']) && (float) $stock['quantity'] > 0) ProductOpeningStock::create($stock + ['product_id' => $product->id, 'opening_date' => $data['opening_date']]);
+            }
+        });
 
-        return redirect()->route('products.index')->with('success', 'Medicine added successfully.');
+        return redirect()->route('products.index')->with('success', 'Item added successfully.');
     }
 
     public function edit(Product $product): View
@@ -48,55 +56,43 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product): RedirectResponse
     {
-        $product->update($this->validated($request, $product));
+        $product->update(collect($this->validated($request, $product))->except(['opening_stocks', 'opening_date'])->all());
 
-        return redirect()->route('products.index')->with('success', 'Medicine updated successfully.');
+        return redirect()->route('products.index')->with('success', 'Vehicle model updated successfully.');
     }
 
     public function destroy(Product $product): RedirectResponse
     {
         if ($product->purchaseItems()->exists() || $product->batches()->exists()) {
-            return back()->with('error', 'This medicine has inventory history and cannot be deleted. Mark it inactive instead.');
+            return back()->with('error', 'This vehicle model has inventory history and cannot be deleted. Mark it inactive instead.');
         }
 
         $product->delete();
 
-        return back()->with('success', 'Medicine deleted successfully.');
+        return back()->with('success', 'Vehicle model deleted successfully.');
     }
 
     private function references(): array
     {
         return [
-            'genericNames' => GenericName::query()->where('is_active', true)->orderBy('name')->get(),
+            'categories' => ItemCategory::orderBy('name')->get(),
+            'stores' => Store::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'positions' => StorePosition::where('is_active', true)->orderBy('name')->get(['id', 'store_id', 'name']),
         ];
     }
 
     private function validated(Request $request, ?Product $product = null): array
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'category' => ['required', Rule::in(['tablet', 'capsule', 'syrup', 'suspension', 'injection', 'drops', 'cream', 'ointment', 'gel', 'inhaler', 'suppository', 'powder', 'sachet', 'other'])],
-            'barcode' => ['nullable', 'string', 'max:100', Rule::unique('products')->ignore($product)],
-            'generic_name_id' => ['nullable', 'exists:generic_names,id'],
-            'unit' => ['required', Rule::in(['piece', 'strip', 'box', 'bottle', 'tube', 'vial', 'sachet'])],
-            'pieces_per_strip' => ['required', 'integer', 'min:1', 'max:1000'],
-            'sell_by_piece' => ['nullable', 'boolean'],
-            'sell_by_strip' => ['nullable', 'boolean'],
-            'reorder_level' => ['required', 'integer', 'min:0', 'max:1000000'],
+            'name' => ['required', 'string', 'max:255'], 'part_no' => ['nullable', 'string', 'max:255', Rule::unique('products', 'part_no')->ignore($product)],
+            'item_category_id' => ['nullable', 'exists:item_categories,id'], 'unit' => ['required', 'string', 'max:50'],
+            'unit_price' => ['required', 'numeric', 'min:0'], 'reorder_level' => ['nullable', 'numeric', 'min:0'], 'opening_date' => ['nullable', 'date'],
+            'opening_stocks' => ['nullable', 'array'], 'opening_stocks.*.store_id' => ['nullable', 'exists:stores,id'],
+            'opening_stocks.*.store_position_id' => ['nullable', 'exists:store_positions,id'], 'opening_stocks.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
-        $data['barcode'] = $data['barcode'] ?: null;
-        $data['sell_by_piece'] = $request->boolean('sell_by_piece');
-        $data['sell_by_strip'] = $request->boolean('sell_by_strip');
         $data['is_active'] = $request->boolean('is_active');
-
-        if (! $data['sell_by_piece'] && ! $data['sell_by_strip']) {
-            throw ValidationException::withMessages(['sell_by_piece' => 'Choose at least one selling option: single piece or strip.']);
-        }
-
-        if ($data['sell_by_strip'] && $data['pieces_per_strip'] < 2) {
-            throw ValidationException::withMessages(['pieces_per_strip' => 'A strip must contain at least 2 pieces.']);
-        }
+        $data += ['category' => 'item', 'commission_type' => 'fixed', 'unit_commission' => 0, 'pieces_per_strip' => 1, 'sell_by_piece' => true, 'sell_by_strip' => false, 'reorder_level' => 0, 'opening_date' => now()->toDateString()];
 
         return $data;
     }

@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\GenericNameController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ItemCategoryController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\AttendanceController;
@@ -35,13 +36,23 @@ use App\Http\Controllers\PreEventPlanController;
 use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\SalesTargetController;
+use App\Http\Controllers\RequisitionController;
+use App\Http\Controllers\InventoryIssueController;
+use App\Http\Controllers\GoodsReceiptController;
+use App\Http\Controllers\ItemTransferController;
+use App\Http\Controllers\IssueReturnController;
+use App\Http\Controllers\StockLedgerController;
+use App\Http\Controllers\PhoneCallController;
 use App\Http\Controllers\CustomerVehicleSaleController;
 use App\Http\Controllers\DealerSaleController;
+use App\Http\Controllers\DealerController;
+use App\Http\Controllers\DealerDeliveryController;
 use App\Http\Controllers\SalesCollectionController;
 use App\Http\Controllers\ChequeController;
 use App\Http\Controllers\SalesDocumentController;
 use App\Http\Controllers\SalesReturnController;
 use App\Http\Controllers\SalesAdjustmentController;
+use App\Http\Controllers\BikeSalesReportController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\StorePositionController;
 use App\Http\Controllers\SystemSettingsController;
@@ -66,7 +77,7 @@ Route::middleware(['auth', 'permission:pos.access'])->group(function () {
     Route::get('/pos/saved-orders/{savedOrder}/edit', [PosController::class, 'editSavedOrder'])->name('pos.saved-orders.edit');
     Route::delete('/pos/saved-orders/{savedOrder}', [PosController::class, 'destroySavedOrder'])->name('pos.saved-orders.destroy');
     Route::get('/pos/history', [PosController::class, 'history'])->name('pos.history');
-    Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
+    Route::get('/sales/{sale}', [SaleController::class, 'show'])->whereNumber('sale')->name('sales.show');
 });
 
 Route::middleware(['auth', 'permission:products.view'])->prefix('admin')->group(function () {
@@ -82,6 +93,8 @@ Route::middleware(['auth', 'permission:customers.manage'])->prefix('admin')->gro
     Route::resource('customers', CustomerController::class)->only(['edit', 'update', 'destroy']);
 });
 Route::middleware(['auth', 'permission:activities.manage'])->prefix('crm')->group(function () {
+    Route::get('phone-calls', [PhoneCallController::class, 'index'])->name('phone-calls.index');
+    Route::patch('phone-calls/{activity}/verify', [PhoneCallController::class, 'verify'])->name('phone-calls.verify');
     Route::get('activities', [ActivityController::class, 'index'])->name('activities.index');
     Route::get('activities/create', [ActivityController::class, 'create'])->name('activities.create');
     Route::post('activities', [ActivityController::class, 'store'])->name('activities.store');
@@ -109,6 +122,9 @@ Route::middleware(['auth', 'permission:organizations.manage'])->prefix('crm/orga
 });
 Route::middleware(['auth', 'permission:performance-reports.view'])->get('crm/performance-report', [PerformanceReportController::class, 'index'])->name('performance.index');
 Route::middleware(['auth', 'permission:activity-setup.manage'])->prefix('crm/activity-setup')->group(function () {
+    Route::get('types', [ActivitySetupController::class, 'types'])->name('activity-setup.types.index');
+    Route::get('sub-types', [ActivitySetupController::class, 'subTypes'])->name('activity-setup.sub-types.index');
+    Route::get('type-for', [ActivitySetupController::class, 'subjectTypes'])->name('activity-setup.subject-types.index');
     Route::get('/', [ActivitySetupController::class, 'index'])->name('activity-setup.index');
     Route::post('types', [ActivitySetupController::class, 'storeType'])->name('activity-setup.types.store');
     Route::put('types/{activityType}', [ActivitySetupController::class, 'updateType'])->name('activity-setup.types.update');
@@ -127,13 +143,26 @@ Route::middleware(['auth', 'permission:pre-event-plans.manage'])->prefix('planni
 Route::middleware(['auth', 'permission:agendas.manage'])->prefix('planning')->group(function(){Route::get('agendas',[AgendaController::class,'index'])->name('agendas.index');Route::get('agendas/create',[AgendaController::class,'create'])->name('agendas.create');Route::post('agendas',[AgendaController::class,'store'])->name('agendas.store');});
 Route::middleware(['auth', 'permission:meetings.manage'])->prefix('planning')->group(function(){Route::get('meetings',[MeetingController::class,'index'])->name('meetings.index');Route::get('meetings/create',[MeetingController::class,'create'])->name('meetings.create');Route::post('meetings',[MeetingController::class,'store'])->name('meetings.store');});
 Route::middleware(['auth', 'permission:sales-targets.manage'])->prefix('sales')->group(function(){Route::get('targets',[SalesTargetController::class,'index'])->name('sales-targets.index');Route::get('targets/create',[SalesTargetController::class,'create'])->name('sales-targets.create');Route::post('targets',[SalesTargetController::class,'store'])->name('sales-targets.store');});
+Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('requisitions',[RequisitionController::class,'index'])->name('requisitions.index');Route::get('requisitions/create',[RequisitionController::class,'create'])->name('requisitions.create');Route::post('requisitions',[RequisitionController::class,'store'])->name('requisitions.store');});
+Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('issues',[InventoryIssueController::class,'index'])->name('inventory-issues.index');Route::get('issues/create',[InventoryIssueController::class,'create'])->name('inventory-issues.create');Route::post('issues',[InventoryIssueController::class,'store'])->name('inventory-issues.store');});
+Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('issue-returns',[IssueReturnController::class,'index'])->name('issue-returns.index');Route::get('issue-returns/create',[IssueReturnController::class,'create'])->name('issue-returns.create');Route::post('issue-returns',[IssueReturnController::class,'store'])->name('issue-returns.store');});
 Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('customer-sales',[CustomerVehicleSaleController::class,'index'])->name('customer-sales.index');Route::get('customer-sales/create',[CustomerVehicleSaleController::class,'create'])->name('customer-sales.create');Route::post('customer-sales',[CustomerVehicleSaleController::class,'store'])->name('customer-sales.store');});
-Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('dealer-sales/create',[DealerSaleController::class,'create'])->name('dealer-sales.create');Route::post('dealer-sales',[DealerSaleController::class,'store'])->name('dealer-sales.store');});
+Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){
+    Route::resource('dealers', DealerController::class)->only(['index', 'create', 'store']);
+    Route::get('dealer-outstanding', [DealerDeliveryController::class, 'outstanding'])->name('dealer-outstanding.index');
+    Route::get('delivery-orders', [DealerDeliveryController::class, 'orders'])->name('delivery-orders.index');
+    Route::get('dealer-sales', [DealerDeliveryController::class, 'dealerSales'])->name('dealer-sales.index');
+    Route::get('dealer-sales/create',[DealerSaleController::class,'create'])->name('dealer-sales.create');
+    Route::post('dealer-sales',[DealerSaleController::class,'store'])->name('dealer-sales.store');
+});
 Route::middleware(['auth','permission:sales.manage'])->prefix('sales')->group(function(){Route::get('collections',[SalesCollectionController::class,'index'])->name('sales-collections.index');Route::get('collections/create',[SalesCollectionController::class,'create'])->name('sales-collections.create');Route::post('collections',[SalesCollectionController::class,'store'])->name('sales-collections.store');Route::get('cheques',[ChequeController::class,'index'])->name('cheques.index');Route::post('cheques',[ChequeController::class,'store'])->name('cheques.store');});
 Route::middleware(['auth','permission:sales.manage'])->prefix('sales/documents')->group(function(){Route::get('/',[SalesDocumentController::class,'index'])->name('sales-documents.index');Route::get('create',[SalesDocumentController::class,'create'])->name('sales-documents.create');Route::post('/',[SalesDocumentController::class,'store'])->name('sales-documents.store');Route::get('{id}/download',[SalesDocumentController::class,'download'])->name('sales-documents.download');Route::delete('{id}',[SalesDocumentController::class,'destroy'])->name('sales-documents.destroy');});
 Route::middleware(['auth','permission:sales.manage'])->prefix('sales/returns')->group(function(){Route::get('/',[SalesReturnController::class,'index'])->name('sales-returns.index');Route::get('create',[SalesReturnController::class,'create'])->name('sales-returns.create');Route::post('/',[SalesReturnController::class,'store'])->name('sales-returns.store');});
-Route::middleware(['auth','permission:sales.manage'])->prefix('sales/adjustments')->group(function(){Route::get('create',[SalesAdjustmentController::class,'create'])->name('sales-adjustments.create');Route::post('/',[SalesAdjustmentController::class,'store'])->name('sales-adjustments.store');});
+Route::middleware(['auth','permission:sales.manage'])->prefix('sales/adjustments')->group(function(){Route::get('/',[SalesAdjustmentController::class,'index'])->name('sales-adjustments.index');Route::get('create',[SalesAdjustmentController::class,'create'])->name('sales-adjustments.create');Route::post('/',[SalesAdjustmentController::class,'store'])->name('sales-adjustments.store');});
+Route::middleware(['auth','permission:sales.manage'])->get('sales/bike-report',[BikeSalesReportController::class,'index'])->name('bike-sales-reports.index');
 Route::middleware(['auth', 'permission:purchases.manage'])->prefix('admin')->group(function () {
+    Route::get('receives', [GoodsReceiptController::class, 'index'])->name('goods-receipts.index'); Route::get('receives/create', [GoodsReceiptController::class, 'create'])->name('goods-receipts.create'); Route::post('receives', [GoodsReceiptController::class, 'store'])->name('goods-receipts.store');
+    Route::get('item-transfers', [ItemTransferController::class, 'index'])->name('item-transfers.index'); Route::get('item-transfers/create', [ItemTransferController::class, 'create'])->name('item-transfers.create'); Route::post('item-transfers', [ItemTransferController::class, 'store'])->name('item-transfers.store');
     Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show']);
 });
 
@@ -161,6 +190,7 @@ Route::middleware(['auth', 'permission:generic-names.manage'])->prefix('admin')-
     Route::resource('generic-names', GenericNameController::class)->except(['show']);
 });
 Route::middleware(['auth', 'permission:products.manage'])->prefix('admin')->group(function () {
+    Route::resource('item-categories', ItemCategoryController::class)->only(['index', 'create', 'store']);
     Route::resource('products', ProductController::class)->except(['index', 'show']);
 });
 Route::middleware(['auth', 'permission:employees.manage'])->prefix('admin')->group(function () {
@@ -177,6 +207,7 @@ Route::middleware(['auth', 'permission:employees.manage'])->prefix('admin')->gro
 });
 
 Route::middleware(['auth', 'permission:reports.view'])->prefix('admin')->group(function () {
+    Route::get('reports/stock-ledger', [StockLedgerController::class, 'index'])->name('reports.stock-ledger');
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
     Route::get('reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
@@ -184,6 +215,10 @@ Route::middleware(['auth', 'permission:reports.view'])->prefix('admin')->group(f
     Route::get('reports/stock', [ReportController::class, 'stock'])->name('reports.stock');
     Route::get('reports/product-needed', [ReportController::class, 'needed'])->name('reports.needed');
     Route::get('reports/profit-loss', [FinancialReportController::class, 'profitLoss'])->name('reports.profit-loss');
+    Route::get('reports/cash-book', [FinancialReportController::class, 'cashBook'])->name('reports.cash-book');
+    Route::get('reports/bank-book', [FinancialReportController::class, 'bankBook'])->name('reports.bank-book');
+    Route::get('reports/journal-book', [FinancialReportController::class, 'journalBook'])->name('reports.journal-book');
+    Route::get('reports/ledger', [FinancialReportController::class, 'ledger'])->name('reports.ledger');
     Route::get('reports/trial-balance', [FinancialReportController::class, 'trialBalance'])->name('reports.trial-balance');
     Route::get('reports/income-statement', [FinancialReportController::class, 'incomeStatement'])->name('reports.income-statement');
     Route::get('reports/balance-sheet', [FinancialReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
@@ -207,6 +242,7 @@ Route::middleware(['auth', 'permission:config.store-positions.manage'])->prefix(
 
 Route::middleware(['auth', 'permission:system-settings.manage'])->prefix('admin/system-settings')->group(function () {
     Route::get('/', [SystemSettingsController::class, 'index'])->name('system-settings.index');
+    Route::get('{setting}', [SystemSettingsController::class, 'show'])->name('system-settings.show');
     Route::post('{setting}', [SystemSettingsController::class, 'store'])->name('system-settings.store');
     Route::put('{setting}/{id}', [SystemSettingsController::class, 'update'])->name('system-settings.update');
     Route::delete('{setting}/{id}', [SystemSettingsController::class, 'destroy'])->name('system-settings.destroy');

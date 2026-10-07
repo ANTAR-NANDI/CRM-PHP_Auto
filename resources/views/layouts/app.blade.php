@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}"><title>Pharmacy Admin</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}"><title>W3 CRM — Automobile CRM</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.min.css">
 </head>
@@ -15,7 +15,7 @@
             <div class="mx-auto flex h-full w-full max-w-[1500px] items-center justify-between px-5 lg:px-6">
                 <div class="flex min-w-0 items-center gap-3">
                     <button type="button" @click="mobileNavOpen = true" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/20 text-xl hover:bg-white/10 lg:hidden" aria-label="Open navigation menu" :aria-expanded="mobileNavOpen.toString()">☰</button>
-                    <div class="min-w-0"><p class="truncate text-sm font-semibold">Pharmacy Management</p><p class="hidden text-xs text-indigo-300 sm:block">Secure admin workspace</p></div>
+                    <div class="min-w-0"><p class="truncate text-sm font-semibold">W3 CRM</p><p class="hidden text-xs text-indigo-300 sm:block">Automobile CRM</p></div>
                 </div>
                 <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-white/10"><span class="grid h-8 w-8 place-items-center rounded-full bg-indigo-500 text-xs font-bold">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span><span class="hidden text-sm font-semibold sm:block">{{ auth()->user()->name }}</span></a>
             </div>
@@ -26,6 +26,9 @@
             @if(session('error'))<div x-data="{ show: true, init() { setTimeout(() => this.show = false, 2000) } }" x-show="show" x-transition.opacity.duration.200ms class="mb-5 flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 print:hidden"><span class="grid h-6 w-6 place-items-center rounded-full bg-rose-500 text-xs text-white">!</span>{{ session('error') }}</div>@endif
             {{ $slot }}
         </div></main>
+        <footer class="border-t border-slate-200 bg-white px-5 py-4 text-center text-xs text-slate-500 print:hidden">
+            Developed by <span class="font-semibold text-slate-700">W3xplorers Bangladesh</span> · © 2026 W3 CRM
+        </footer>
     </div>
 </div>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>

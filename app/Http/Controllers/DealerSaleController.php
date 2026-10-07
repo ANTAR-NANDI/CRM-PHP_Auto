@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\Dealer;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\User;
@@ -16,20 +17,9 @@ class DealerSaleController extends Controller
     {
         return view('dealer-sales.create', [
             'nextSaleNo' => 'DLS-'.now()->format('ymdHis'),
-            'suppliers' => Supplier::orderBy('name')->get(['id', 'name']),
+            'dealers' => Dealer::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'customers' => Customer::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'products' => Product::query()
-                ->select(['id', 'name'])
-                ->selectSub(
-                    DB::table('medicine_batches')
-                        ->select('sale_price')
-                        ->whereColumn('medicine_batches.product_id', 'products.id')
-                        ->orderByDesc('id')
-                        ->limit(1),
-                    'selling_price'
-                )
-                ->orderBy('name')
-                ->get(),
+            'products' => Product::query()->select(['id', 'name', 'unit_price as selling_price'])->orderBy('name')->get(),
             'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(),
             'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
@@ -38,7 +28,7 @@ class DealerSaleController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'sale_date' => ['required', 'date'], 'supplier_id' => ['nullable', 'exists:suppliers,id'],
+            'sale_date' => ['required', 'date'], 'dealer_id' => ['required', 'exists:dealers,id'],
             'customer_id' => ['nullable', 'exists:customers,id'], 'mode_of_sale' => ['required', 'string'],
             'tentative_delivery_date' => ['nullable', 'date'], 'delivery_point' => ['nullable', 'string', 'max:255'],
             'transfer_from_other' => ['nullable', 'boolean'], 'sales_person_id' => ['nullable', 'exists:users,id'],

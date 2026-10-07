@@ -50,6 +50,8 @@ class AccountingPostingService
 
     private function account(string $code): ChartOfAccount
     {
+        app(PartyAccountService::class)->ensureStandardAccounts();
+
         return ChartOfAccount::query()->where('code', $code)->where('is_active', true)->where('is_transactional', true)->firstOrFail();
     }
 

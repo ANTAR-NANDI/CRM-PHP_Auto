@@ -12,6 +12,9 @@ use Illuminate\View\View;
 
 class ActivitySetupController extends Controller
 {
+    public function types(): View { return view('activity-setup.types', ['types' => ActivityType::withCount('subTypes')->orderBy('name')->paginate(20)]); }
+    public function subTypes(): View { return view('activity-setup.sub-types', ['subTypes' => ActivitySubType::with('type')->orderBy('name')->paginate(20), 'types' => ActivityType::where('is_active', true)->orderBy('name')->get()]); }
+    public function subjectTypes(): View { return view('activity-setup.subject-types', ['subjectTypes' => ActivitySubjectType::orderBy('name')->paginate(20)]); }
     public function index(): View
     {
         return view('activity-setup.index', [

@@ -29,6 +29,95 @@
 }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: rgb(165 180 252 / 0.7); }
 
+/* Application sidebar: compact visual groups, clear hover states, and a calmer
+   surface that does not need phase labels to be understandable. */
+.app-sidebar {
+    background:
+        radial-gradient(circle at 5% 0%, rgb(45 212 191 / 0.18), transparent 25rem),
+        linear-gradient(180deg, #121d36 0%, #0b1222 62%, #08101e 100%);
+    border-right: 1px solid rgb(148 163 184 / 0.12);
+    box-shadow: 12px 0 32px rgb(2 6 23 / 0.18);
+}
+.sidebar-brand {
+    border-bottom: 1px solid rgb(226 232 240 / 0.1);
+    background: linear-gradient(90deg, rgb(255 255 255 / 0.05), transparent);
+}
+.sidebar-mark {
+    color: #062b2b;
+    background: linear-gradient(135deg, #5eead4, #2dd4bf 58%, #99f6e4);
+    box-shadow: 0 8px 20px rgb(20 184 166 / 0.23);
+}
+.app-sidebar nav {
+    padding-top: 1rem;
+    padding-bottom: 1.25rem;
+}
+.app-sidebar nav > a {
+    margin-bottom: 0.55rem;
+    border: 1px solid rgb(94 234 212 / 0.18);
+    border-radius: 0.75rem;
+    background: linear-gradient(90deg, rgb(20 184 166 / 0.9), rgb(13 148 136 / 0.78));
+    box-shadow: 0 6px 16px rgb(15 118 110 / 0.2);
+}
+.app-sidebar nav > div {
+    margin-top: 0.38rem;
+    border: 1px solid rgb(255 255 255 / 0.04);
+    border-radius: 0.75rem;
+    background: rgb(255 255 255 / 0.025);
+}
+.app-sidebar nav > div > button {
+    min-height: 2.75rem;
+    border-radius: 0.65rem;
+    letter-spacing: 0.01em;
+    color: #e0e7ff;
+}
+.app-sidebar nav > div > button:hover {
+    background: rgb(255 255 255 / 0.07);
+    color: #ffffff;
+}
+.app-sidebar nav > div > button > span:last-child {
+    color: #5eead4;
+    font-size: 1.25rem;
+    transition: transform 180ms ease;
+}
+.app-sidebar nav > div > div {
+    margin: 0 0.45rem 0.45rem;
+    padding: 0.2rem 0 0.3rem;
+    border-left: 1px solid rgb(94 234 212 / 0.28);
+}
+.app-sidebar nav > div > div a {
+    margin: 0.1rem 0;
+    border-radius: 0.45rem;
+    color: #c7d2fe;
+}
+.app-sidebar nav a {
+    transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.app-sidebar nav a:hover {
+    color: #ffffff;
+    background: rgb(45 212 191 / 0.12);
+    transform: translateX(3px);
+}
+.app-sidebar form {
+    background: rgb(3 7 18 / 0.3);
+}
+.app-sidebar form button:hover { color: #ffffff; }
+
+@media (max-width: 1023px) {
+    .app-sidebar {
+        width: min(86vw, 21rem);
+        border-right-color: rgb(94 234 212 / 0.18);
+        box-shadow: 18px 0 44px rgb(2 6 23 / 0.38);
+    }
+    .app-sidebar nav > div > button,
+    .app-sidebar nav a {
+        min-height: 2.8rem;
+    }
+    .app-sidebar nav > div > div a {
+        padding-top: 0.72rem;
+        padding-bottom: 0.72rem;
+    }
+}
+
 /* CRM primary actions must retain their contrast even when a stale Tailwind
    build does not contain arbitrary-value utilities. */
 [class~="bg-[#1f7d88]"] {

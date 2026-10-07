@@ -11,6 +11,56 @@ use Illuminate\View\View;
 
 class FinancialReportController extends Controller
 {
+    public function cashBook(Request $request): View { return $this->book($request, 'cash', 'Cash Book'); }
+    public function bankBook(Request $request): View { return $this->book($request, 'bank', 'Bank Book'); }
+    public function journalBook(Request $request): View { return $this->book($request, 'journal', 'Journal Book'); }
+    public function ledger(Request $request): View
+    {
+        $data = $request->validate([
+            'account_id' => ['nullable', 'integer', 'exists:chart_of_accounts,id'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+        $from = isset($data['from']) ? Carbon::parse($data['from'])->startOfDay() : today()->startOfMonth();
+        $to = isset($data['to']) ? Carbon::parse($data['to'])->endOfDay() : today()->endOfDay();
+        $accounts = ChartOfAccount::query()->where('is_active', true)->where('is_transactional', true)->orderBy('code')->get();
+        $account = isset($data['account_id']) ? $accounts->firstWhere('id', $data['account_id']) : null;
+        $opening = 0.0;
+        $rows = collect();
+
+        if ($account) {
+            $openingBalance = AccountOpeningBalance::query()
+                ->where('chart_of_account_id', $account->id)
+                ->whereDate('opening_date', '<', $from)
+                ->selectRaw('COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) AS balance')
+                ->value('balance');
+            $priorMovement = AccountVoucherEntry::query()
+                ->join('account_vouchers', 'account_voucher_entries.account_voucher_id', '=', 'account_vouchers.id')
+                ->where('account_voucher_entries.chart_of_account_id', $account->id)
+                ->whereDate('account_vouchers.voucher_date', '<', $from)
+                ->selectRaw('COALESCE(SUM(account_voucher_entries.debit), 0) - COALESCE(SUM(account_voucher_entries.credit), 0) AS balance')
+                ->value('balance');
+            $opening = round((float) $openingBalance + (float) $priorMovement, 2);
+            $balance = $opening;
+            $rows = AccountVoucherEntry::query()
+                ->join('account_vouchers', 'account_voucher_entries.account_voucher_id', '=', 'account_vouchers.id')
+                ->where('account_voucher_entries.chart_of_account_id', $account->id)
+                ->whereBetween('account_vouchers.voucher_date', [$from->toDateString(), $to->toDateString()])
+                ->orderBy('account_vouchers.voucher_date')
+                ->orderBy('account_vouchers.id')
+                ->orderBy('account_voucher_entries.id')
+                ->get(['account_vouchers.voucher_number', 'account_vouchers.voucher_date', 'account_vouchers.voucher_type', 'account_vouchers.narration', 'account_voucher_entries.debit', 'account_voucher_entries.credit', 'account_voucher_entries.note'])
+                ->map(function (AccountVoucherEntry $entry) use (&$balance) {
+                    $entry->voucher_date = Carbon::parse($entry->voucher_date);
+                    $balance += (float) $entry->debit - (float) $entry->credit;
+                    $entry->running_balance = round($balance, 2);
+
+                    return $entry;
+                });
+        }
+
+        return view('admin.reports.ledger', compact('accounts', 'account', 'from', 'to', 'opening', 'rows'));
+    }
     public function profitLoss(Request $request): View
     {
         [$from, $to] = $this->dates($request);
@@ -87,5 +137,14 @@ class FinancialReportController extends Controller
     {
         $data = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
         return [isset($data['from']) ? Carbon::parse($data['from']) : today()->startOfMonth(), isset($data['to']) ? Carbon::parse($data['to']) : today()];
+    }
+
+    private function book(Request $request, string $kind, string $title): View
+    {
+        [$from, $to] = $this->dates($request);
+        $query = AccountVoucherEntry::query()->join('account_vouchers', 'account_voucher_entries.account_voucher_id', '=', 'account_vouchers.id')->join('chart_of_accounts', 'account_voucher_entries.chart_of_account_id', '=', 'chart_of_accounts.id')->select('account_vouchers.voucher_number', 'account_vouchers.voucher_date', 'account_vouchers.voucher_type', 'account_vouchers.narration', 'chart_of_accounts.code', 'chart_of_accounts.name as account_name', 'account_voucher_entries.debit', 'account_voucher_entries.credit')->whereBetween('account_vouchers.voucher_date', [$from, $to]);
+        if ($kind === 'journal') $query->where('account_vouchers.voucher_type', 'journal'); else $query->where('chart_of_accounts.name', 'like', '%'.ucfirst($kind).'%');
+        $rows = $query->orderBy('account_vouchers.voucher_date')->orderBy('account_vouchers.id')->get();
+        return view('admin.reports.book', compact('title', 'from', 'to', 'rows'));
     }
 }

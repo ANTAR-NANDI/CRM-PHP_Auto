@@ -19,18 +19,7 @@ class CustomerVehicleSaleController extends Controller
             'saleNo' => 'CVS-'.now()->format('ymd').'-'.str_pad((string) (CustomerVehicleSale::count() + 1), 4, '0', STR_PAD_LEFT),
             'customers' => Customer::where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone']),
             'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(),
-            'products' => Product::query()
-                ->select(['id', 'name'])
-                ->selectSub(
-                    DB::table('medicine_batches')
-                        ->select('sale_price')
-                        ->whereColumn('medicine_batches.product_id', 'products.id')
-                        ->orderByDesc('id')
-                        ->limit(1),
-                    'selling_price'
-                )
-                ->orderBy('name')
-                ->get(),
+            'products' => Product::query()->select(['id', 'name', 'unit_price as selling_price'])->orderBy('name')->get(),
             'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }

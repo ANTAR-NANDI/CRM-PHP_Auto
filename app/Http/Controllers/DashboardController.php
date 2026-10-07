@@ -3,13 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
+use App\Models\Activity;
+use App\Models\Lead;
 use App\Models\MedicineBatch;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\Todo;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -52,6 +58,28 @@ class DashboardController extends Controller
             'date' => today()->format('d M'),
             'total' => $todaySales,
         ]);
+        $calendarStart = $today->copy()->startOfMonth()->startOfWeek(Carbon::MONDAY);
+        $calendarEnd = $today->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY);
+        $calendarTodos = Todo::query()
+            ->whereBetween('due_at', [$calendarStart, $calendarEnd->copy()->endOfDay()])
+            ->where('status', '!=', 'completed')
+            ->orderBy('due_at')
+            ->get()
+            ->groupBy(fn (Todo $todo) => $todo->due_at->toDateString());
+        $leadStatusSummary = DB::table('crm_lead_statuses')
+            ->leftJoin('leads', 'leads.lead_status_id', '=', 'crm_lead_statuses.id')
+            ->select('crm_lead_statuses.id', 'crm_lead_statuses.name', 'crm_lead_statuses.badge_color', DB::raw('COUNT(leads.id) AS total'))
+            ->where('crm_lead_statuses.is_active', true)
+            ->groupBy('crm_lead_statuses.id', 'crm_lead_statuses.name', 'crm_lead_statuses.badge_color')
+            ->orderBy('crm_lead_statuses.name')
+            ->get();
+        $pipelineSummary = DB::table('crm_pipelines')
+            ->leftJoin('leads', 'leads.pipeline_id', '=', 'crm_pipelines.id')
+            ->select('crm_pipelines.id', 'crm_pipelines.name', DB::raw('COUNT(leads.id) AS total'))
+            ->where('crm_pipelines.is_active', true)
+            ->groupBy('crm_pipelines.id', 'crm_pipelines.name')
+            ->orderBy('crm_pipelines.name')
+            ->get();
 
         return view('dashboard', [
             'todaySales' => $todaySales,
@@ -79,6 +107,16 @@ class DashboardController extends Controller
                     ->orderByDesc('total_sales')
                     ->get()
                 : collect(),
+            'recentActivities' => Activity::query()->with(['type', 'user'])->whereBetween('from_at', [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()])->latest('from_at')->limit(8)->get(),
+            'todoReminders' => Todo::query()->with(['type', 'assignee'])->where('status', '!=', 'completed')->where('due_at', '<=', $today->copy()->addDays(14)->endOfDay())->orderBy('due_at')->limit(6)->get(),
+            'leadStatusSummary' => $leadStatusSummary,
+            'pipelineSummary' => $pipelineSummary,
+            'hotLeads' => Lead::query()->with(['owner', 'product'])->join('crm_lead_statuses', 'leads.lead_status_id', '=', 'crm_lead_statuses.id')->whereRaw('LOWER(crm_lead_statuses.name) = ?', ['hot'])->select('leads.*')->latest('leads.created_at')->limit(5)->get(),
+            'warmLeads' => Lead::query()->with(['owner', 'product'])->join('crm_lead_statuses', 'leads.lead_status_id', '=', 'crm_lead_statuses.id')->whereRaw('LOWER(crm_lead_statuses.name) = ?', ['warm'])->select('leads.*')->latest('leads.created_at')->limit(5)->get(),
+            'dashboardInventory' => Product::query()->where('is_active', true)->withSum('batches as stock_quantity', 'quantity_available')->orderBy('name')->limit(8)->get(),
+            'calendarDays' => collect(CarbonPeriod::create($calendarStart, $calendarEnd)),
+            'calendarTodos' => $calendarTodos,
+            'calendarMonth' => $today->format('F Y'),
         ]);
     }
 }
