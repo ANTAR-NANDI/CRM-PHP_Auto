@@ -70,10 +70,14 @@ class StorePositionController extends Controller
         $data = $request->validate([
             'store_id' => ['required', Rule::exists('stores', 'id')],
             'name' => ['required', 'string', 'max:255'],
+            'code' => ['nullable', 'string', 'max:50'],
             'is_active' => ['nullable', 'boolean'],
         ]);
         $data['is_active'] = $request->boolean('is_active');
-        $data['code'] = $this->codeFor($data['name'], (int) $data['store_id'], $position);
+        $code = trim((string) ($data['code'] ?? ''));
+        $data['code'] = $code !== ''
+            ? Str::upper(Str::slug($code))
+            : $this->codeFor($data['name'], (int) $data['store_id'], $position);
 
         return $data;
     }

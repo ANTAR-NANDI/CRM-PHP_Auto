@@ -1,3 +1,32 @@
 @csrf
 @if(isset($editing)) @method('PUT') @endif
-<div class="grid gap-5 md:grid-cols-3"><div><label class="text-sm font-semibold text-slate-700">Store *</label><select name="store_id" required class="mt-2 w-full rounded-md border-slate-300 py-2.5 text-sm"><option value="">Select store</option>@foreach($stores as $store)<option value="{{ $store->id }}" @selected(old('store_id', $position->store_id) == $store->id)>{{ $store->name }}</option>@endforeach</select><x-input-error :messages="$errors->get('store_id')" class="mt-2"/></div><div><label class="text-sm font-semibold text-slate-700">Position name *</label><input name="name" value="{{ old('name', $position->name) }}" required placeholder="Sales Executive" class="mt-2 w-full rounded-md border-slate-300 px-3 py-2.5 text-sm"><x-input-error :messages="$errors->get('name')" class="mt-2"/></div><div><label class="text-sm font-semibold text-slate-700">Position code *</label><input name="code" value="{{ old('code', $position->code) }}" required placeholder="SALES-EXEC" class="mt-2 w-full rounded-md border-slate-300 px-3 py-2.5 text-sm"><x-input-error :messages="$errors->get('code')" class="mt-2"/></div></div><label class="mt-5 flex items-center gap-2 text-sm"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $position->is_active ?? true)) class="rounded border-slate-300">Active position</label><div class="mt-6 flex gap-3"><a href="{{ route('store-positions.index') }}" class="rounded-md border px-4 py-2.5 text-sm font-semibold">Cancel</a><button class="rounded-md bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white">{{ isset($editing) ? 'Update Position' : 'Save Position' }}</button></div>
+<div class="grid gap-5 md:grid-cols-3">
+    <div>
+        <label class="text-sm font-semibold text-slate-700">Store *</label>
+        <select name="store_id" required class="mt-2 w-full rounded-md border-slate-300 py-2.5 text-sm">
+            <option value="">Select store</option>
+            @foreach($stores as $store)
+                <option value="{{ $store->id }}" @selected(old('store_id', $position->store_id) == $store->id)>{{ $store->name }}</option>
+            @endforeach
+        </select>
+        <x-input-error :messages="$errors->get('store_id')" class="mt-2"/>
+    </div>
+    <div>
+        <label class="text-sm font-semibold text-slate-700">Position name *</label>
+        <input name="name" value="{{ old('name', $position->name) }}" required placeholder="Sales Executive" class="mt-2 w-full rounded-md border-slate-300 px-3 py-2.5 text-sm">
+        <x-input-error :messages="$errors->get('name')" class="mt-2"/>
+    </div>
+    <div>
+        <label class="text-sm font-semibold text-slate-700">Position code <span class="text-xs font-normal text-slate-400">(optional)</span></label>
+        <input name="code" value="{{ old('code', $position->code) }}" placeholder="e.g. SALES-EXEC" class="mt-2 w-full rounded-md border-slate-300 px-3 py-2.5 text-sm font-mono">
+        <x-input-error :messages="$errors->get('code')" class="mt-2"/>
+    </div>
+</div>
+<label class="mt-5 flex items-center gap-2 text-sm">
+    <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $position->is_active ?? true)) class="rounded border-slate-300">
+    Active position
+</label>
+<div class="mt-6 flex gap-3">
+    <a href="{{ route('store-positions.index') }}" class="rounded-md border px-4 py-2.5 text-sm font-semibold">Cancel</a>
+    <button class="rounded-md bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white">{{ isset($editing) ? 'Update Position' : 'Save Position' }}</button>
+</div>
