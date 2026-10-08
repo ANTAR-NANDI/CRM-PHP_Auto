@@ -9,10 +9,17 @@ return new class extends Migration
     public function up(): void
     {
         foreach (['crm_organizations', 'contacts', 'leads'] as $tableName) {
-            Schema::table($tableName, function (Blueprint $table) {
-                $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-                $table->foreignId('store_id')->nullable()->constrained()->nullOnDelete();
-            });
+            if (! Schema::hasColumn($tableName, 'created_by')) {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+                });
+            }
+
+            if (! Schema::hasColumn($tableName, 'store_id')) {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->foreignId('store_id')->nullable()->constrained()->nullOnDelete();
+                });
+            }
         }
     }
 

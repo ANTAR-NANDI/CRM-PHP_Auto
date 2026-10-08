@@ -6,21 +6,21 @@
                 <h1 class="mt-1 text-xl font-bold text-slate-900">{{ $setting['label'] }}</h1>
                 <p class="mt-1 text-sm text-slate-500">View and manage {{ strtolower($setting['label']) }} values.</p>
             </div>
-            <a href="#add-setting" class="rounded-md bg-[#1f7d88] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#176973]">Add {{ $setting['label'] }}</a>
+            <button id="show-add-setting" type="button" onclick="document.getElementById('add-setting-form').classList.remove('hidden'); document.getElementById('setting-name').focus(); this.classList.add('hidden');" class="{{ $errors->any() ? 'hidden ' : '' }}rounded-md bg-[#1f7d88] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#176973]">Add {{ $setting['label'] }}</button>
         </div>
     </x-slot>
 
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <form id="add-setting" method="POST" action="{{ route('system-settings.store', $settingKey) }}" class="grid gap-3 border-b border-slate-100 bg-slate-50 p-5 md:grid-cols-[1fr_1fr_auto]">
+        <form id="add-setting-form" method="POST" action="{{ route('system-settings.store', $settingKey) }}" class="{{ $errors->any() ? '' : 'hidden' }} grid gap-3 border-b border-slate-100 bg-slate-50 p-5 md:grid-cols-[1fr_1fr_auto]">
             @csrf
-            <input name="name" required placeholder="{{ $setting['label'] }} name" class="w-full rounded-md border-slate-300 py-2.5 text-sm">
+            <input id="setting-name" name="name" required placeholder="{{ $setting['label'] }} name" class="w-full rounded-md border-slate-300 py-2.5 text-sm">
             @if($setting['code'])
                 <input name="code" placeholder="Code (optional)" class="w-full rounded-md border-slate-300 py-2.5 text-sm">
             @else
                 <span class="hidden md:block"></span>
             @endif
             <input type="hidden" name="is_active" value="1">
-            <button class="rounded-md bg-[#1f7d88] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#176973]">Add</button>
+            <div class="flex gap-2"><button class="rounded-md bg-[#1f7d88] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#176973]">Save</button><button type="button" onclick="document.getElementById('add-setting-form').classList.add('hidden'); document.getElementById('show-add-setting').classList.remove('hidden');" class="rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white">Cancel</button></div>
         </form>
 
         <div class="divide-y divide-slate-100">

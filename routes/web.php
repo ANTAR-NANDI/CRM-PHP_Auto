@@ -56,6 +56,7 @@ use App\Http\Controllers\BikeSalesReportController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\StorePositionController;
 use App\Http\Controllers\SystemSettingsController;
+use App\Http\Controllers\PermissionController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -230,6 +231,7 @@ Route::middleware(['auth', 'permission:config.employees.manage'])->prefix('admin
 
 Route::middleware(['auth', 'permission:config.roles.manage'])->prefix('admin')->group(function () {
     Route::resource('roles', RolePermissionController::class)->except(['show']);
+    Route::resource('permissions', PermissionController::class)->except(['show', 'create', 'edit']);
 });
 
 Route::middleware(['auth', 'permission:config.stores.manage'])->prefix('admin')->group(function () {

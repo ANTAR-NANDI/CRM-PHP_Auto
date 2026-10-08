@@ -6,6 +6,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -125,8 +126,13 @@ class RolePermissionController extends Controller
         ];
 
         $grouped = [];
-        Permission::query()->where('guard_name', 'web')->orderBy('name')->get()->each(function (Permission $permission) use (&$grouped, $modules) {
-            [$module, $subModule] = $modules[$permission->name] ?? $modules[explode('.', $permission->name)[0]] ?? ['Other', 'General'];
+        $definitions = DB::table('permission_definitions')->get()->keyBy('permission_id');
+
+        Permission::query()->where('guard_name', 'web')->orderBy('name')->get()->each(function (Permission $permission) use (&$grouped, $modules, $definitions) {
+            $definition = $definitions->get($permission->id);
+            [$module, $subModule] = $definition
+                ? [$definition->module_name, $definition->submodule_name]
+                : ($modules[$permission->name] ?? $modules[explode('.', $permission->name)[0]] ?? ['Other', 'General']);
             $grouped[$module][$subModule][] = $permission;
         });
 
