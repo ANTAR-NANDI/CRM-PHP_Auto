@@ -13,31 +13,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            // Security and account structure must exist before employee and purchase entries.
+            // Intentionally only creates the initial administrator. All master,
+            // employee, inventory, CRM, sales, and accounting data is entered
+            // manually through the application.
+            BootstrapAdminSeeder::class,
             RolesAndPermissionsSeeder::class,
-            DepartmentSeeder::class,
-            ActivityTypeSeeder::class,
-            ActivitySubjectTypeSeeder::class,
-            CrmLeadLookupSeeder::class,
-            TodoTypeSeeder::class,
-            ContactLookupSeeder::class,
-            EventTypeSeeder::class,
-            ChartOfAccountsSeeder::class,
-
-            // Master catalogue data supplied for this pharmacy.
-            BangladeshPharmaceuticalSuppliersSeeder::class,
-            PharmacyGenericNamesSeeder::class,
-            PharmacyMedicineListASeeder::class,
-            PharmacyMedicineListBSeeder::class,
-            PharmacyMedicineListCSeeder::class,
-            PharmacyMedicineRealDSeeder::class,
-            PharmacyMedicineRealESeeder::class,
-            PharmacyMedicineRealFtoJSeeder::class,
-            PharmacyMedicineRealKtoPSeeder::class,
-            PharmacyMedicineRealQtoVSeeder::class,
-
-            // Creates purchase invoices, batches, POS stock and accounting postings.
-            PharmacyCatalogPurchaseSeeder::class,
         ]);
     }
 }

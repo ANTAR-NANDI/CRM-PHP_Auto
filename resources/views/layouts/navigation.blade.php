@@ -1,6 +1,24 @@
 <aside :class="{ 'translate-x-0': mobileNavOpen }" class="app-sidebar fixed inset-y-0 left-0 z-30 flex w-72 -translate-x-full flex-col overflow-hidden bg-[#171E2E] text-white shadow-2xl transition-transform duration-300 lg:w-64 lg:translate-x-0 lg:shadow-none">
     <div class="sidebar-brand flex h-20 shrink-0 items-center gap-3 px-5"><div class="sidebar-mark grid h-11 w-11 place-items-center rounded-xl text-sm font-black">W3</div><div class="min-w-0 flex-1"><p class="truncate text-base font-bold tracking-tight">W3 CRM</p><p class="mt-0.5 text-[10px] font-semibold uppercase tracking-[.16em] text-teal-200/80">Automobile CRM</p></div><button type="button" @click="mobileNavOpen = false" class="grid h-10 w-10 place-items-center rounded-xl text-2xl leading-none text-indigo-100 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-300 lg:hidden" aria-label="Close navigation menu">×</button></div>
-    <nav class="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3 py-4 text-sm" aria-label="Primary navigation">
+    <nav
+        x-data
+        x-init="$nextTick(() => {
+            const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+            const links = Array.from($el.querySelectorAll('a[href]'));
+            const matches = links.filter((link) => {
+                const targetPath = new URL(link.href).pathname.replace(/\/$/, '') || '/';
+                return currentPath === targetPath || (targetPath !== '/' && currentPath.startsWith(`${targetPath}/`));
+            });
+            const selected = matches.sort((a, b) => b.pathname.length - a.pathname.length)[0];
+            if (selected) {
+                selected.classList.remove('text-indigo-200', 'text-indigo-100');
+                selected.classList.add('bg-gradient-to-r', 'from-[#3f57ed]', 'to-[#4632f5]', 'font-semibold', 'text-white');
+                selected.setAttribute('aria-current', 'page');
+            }
+        })"
+        class="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3 py-4 text-sm"
+        aria-label="Primary navigation"
+    >
         @can('dashboard.view')<a href="{{ route('dashboard') }}" class="flex items-center gap-3 rounded-md px-3 py-2.5 {{ request()->routeIs('dashboard') ? 'bg-gradient-to-r from-[#3f57ed] to-[#4632f5] font-semibold' : 'text-indigo-100 hover:bg-white/10' }}"><span>⌂</span>Dashboard</a>@endcan
 
         @if(auth()->user()->canAny(['config.roles.manage','config.employees.manage','config.users.manage','config.stores.manage','config.store-positions.manage']))
@@ -32,10 +50,11 @@
         </div>
         @endcan
 
-        @if(auth()->user()->canAny(['contacts.manage','organizations.manage','leads.manage','activities.manage','todos.manage','performance-reports.view']))
-        <div x-data="{ open: {{ request()->is('crm/*') ? 'true' : 'false' }} }">
+        @if(auth()->user()->canAny(['customers.manage','contacts.manage','organizations.manage','leads.manage','activities.manage','todos.manage','performance-reports.view']))
+        <div x-data="{ open: {{ request()->is('crm/*') || request()->is('admin/customers*') ? 'true' : 'false' }} }">
             <button type="button" @click="open = !open" class="flex w-full items-center justify-between rounded-md px-3 py-2.5 font-semibold text-indigo-100 hover:bg-white/10"><span>Customer Relationship</span><span :class="open ? 'rotate-90' : ''">›</span></button>
             <div x-cloak x-show="open" class="space-y-0.5 pl-3">
+                @can('customers.manage')<a href="{{ route('customers.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Customer Add</a><a href="{{ route('customers.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Customer List</a>@endcan
                 @can('organizations.manage')<a href="{{ route('organizations.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Organization</a>@endcan
                 @can('contacts.manage')<a href="{{ route('contacts.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Contact Add / Contact</a>@endcan
                 @can('leads.manage')<a href="{{ route('leads.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Lead Add / Leads</a>@endcan

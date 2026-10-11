@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class CustomerVehicleSaleController extends Controller
@@ -54,5 +55,36 @@ class CustomerVehicleSaleController extends Controller
             ->when($filters['search'] ?? null, fn ($query, $value) => $query->where(fn ($match) => $match->where('sale_no', 'like', "%{$value}%")->orWhere('customer.name', 'like', "%{$value}%")))
             ->latest('sale_date')->paginate(25)->withQueryString();
         return view('customer-sales.index', ['sales' => $sales, 'filters' => $filters, 'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(), 'products' => Product::orderBy('name')->get(['id', 'name']), 'dealers' => CustomerVehicleSale::whereNotNull('dealer')->distinct()->orderBy('dealer')->pluck('dealer'), 'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name'])]);
+    }
+
+    public function export(CustomerVehicleSale $customerSale): View
+    {
+        $sale = CustomerVehicleSale::query()
+            ->leftJoin('customers as customer', 'customer_vehicle_sales.customer_id', '=', 'customer.id')
+            ->leftJoin('products as product', 'customer_vehicle_sales.product_id', '=', 'product.id')
+            ->leftJoin('crm_segments as segment', 'customer_vehicle_sales.segment_id', '=', 'segment.id')
+            ->leftJoin('users as sales_person', 'customer_vehicle_sales.sales_person_id', '=', 'sales_person.id')
+            ->where('customer_vehicle_sales.id', $customerSale->id)
+            ->select('customer_vehicle_sales.*', 'customer.name as customer_name', 'customer.phone as customer_phone', 'customer.address as customer_address', 'product.name as product_name', 'segment.name as segment_name', 'sales_person.name as sales_person_name')
+            ->firstOrFail();
+
+        return view('customer-sales.export', compact('sale'));
+    }
+
+    public function uploadImage(Request $request, CustomerVehicleSale $customerSale): RedirectResponse
+    {
+        $data = $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        if ($customerSale->delivery_image_path) {
+            Storage::disk('public')->delete($customerSale->delivery_image_path);
+        }
+
+        $customerSale->update([
+            'delivery_image_path' => $data['image']->store('customer-sales/delivery-images', 'public'),
+        ]);
+
+        return back()->with('success', 'Delivery image uploaded successfully.');
     }
 }

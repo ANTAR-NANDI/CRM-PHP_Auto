@@ -15,6 +15,10 @@ import pdfFonts from 'pdfmake/build/vfs_fonts';
 window.Alpine = Alpine;
 window.$ = window.jQuery = $;
 
+// Select2 4.0 still calls this jQuery helper, removed by jQuery 4.
+// Keep the application bundle compatible until Select2 is upgraded.
+$.isArray ??= Array.isArray;
+
 select2($);
 pdfMake.addVirtualFileSystem(pdfFonts);
 DataTable.Buttons.pdfMake(pdfMake);

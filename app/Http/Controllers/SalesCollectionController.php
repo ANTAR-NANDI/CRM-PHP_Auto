@@ -65,4 +65,18 @@ class SalesCollectionController extends Controller
             ->latest('sales_collections.received_at')->get();
         return view('sales-collections.index', ['collections' => $collections, 'filters' => $filters, 'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(['id', 'name'])]);
     }
+
+    public function export(int $collection): View
+    {
+        $collection = DB::table('sales_collections')
+            ->leftJoin('customer_vehicle_sales as sale', 'sales_collections.customer_vehicle_sale_id', '=', 'sale.id')
+            ->leftJoin('customers as customer', 'sale.customer_id', '=', 'customer.id')
+            ->where('sales_collections.id', $collection)
+            ->select('sales_collections.*', 'sale.sale_no', 'sale.sale_date', 'sale.final_price', 'sale.dealer', 'customer.name as customer_name', 'customer.phone as customer_phone', 'customer.address as customer_address')
+            ->first();
+
+        abort_unless($collection, 404);
+
+        return view('sales-collections.export', compact('collection'));
+    }
 }

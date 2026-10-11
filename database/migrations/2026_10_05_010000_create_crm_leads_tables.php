@@ -7,12 +7,15 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         foreach (['crm_organizations', 'crm_segments', 'crm_lead_statuses', 'crm_pipelines', 'crm_sources', 'crm_colors'] as $table) {
+            if (Schema::hasTable($table)) {
+                continue;
+            }
             Schema::create($table, function (Blueprint $table) { $table->id(); $table->string('name')->unique(); $table->boolean('is_active')->default(true); $table->timestamps(); });
         }
-        Schema::table('crm_lead_statuses', fn (Blueprint $table) => $table->string('badge_color')->default('#b89532')->after('name'));
-        Schema::table('crm_pipelines', fn (Blueprint $table) => $table->string('code')->nullable()->unique()->after('name'));
-        Schema::table('crm_colors', fn (Blueprint $table) => $table->string('hex_code')->nullable()->after('name'));
-        Schema::create('leads', function (Blueprint $table) {
+        if (! Schema::hasColumn('crm_lead_statuses', 'badge_color')) Schema::table('crm_lead_statuses', fn (Blueprint $table) => $table->string('badge_color')->default('#b89532')->after('name'));
+        if (! Schema::hasColumn('crm_pipelines', 'code')) Schema::table('crm_pipelines', fn (Blueprint $table) => $table->string('code')->nullable()->unique()->after('name'));
+        if (! Schema::hasColumn('crm_colors', 'hex_code')) Schema::table('crm_colors', fn (Blueprint $table) => $table->string('hex_code')->nullable()->after('name'));
+        if (! Schema::hasTable('leads')) Schema::create('leads', function (Blueprint $table) {
             $table->id(); $table->string('name'); $table->string('phone')->nullable()->index(); $table->string('alternate_phone')->nullable(); $table->string('email')->nullable(); $table->text('address')->nullable(); $table->string('job_title')->nullable();
             $table->foreignId('organization_id')->nullable()->constrained('crm_organizations')->nullOnDelete(); $table->foreignId('segment_id')->nullable()->constrained('crm_segments')->nullOnDelete(); $table->foreignId('product_id')->nullable()->constrained()->nullOnDelete(); $table->foreignId('color_id')->nullable()->constrained('crm_colors')->nullOnDelete();
             $table->foreignId('lead_status_id')->constrained('crm_lead_statuses')->restrictOnDelete(); $table->foreignId('pipeline_id')->nullable()->constrained('crm_pipelines')->nullOnDelete(); $table->foreignId('owner_id')->constrained('users')->restrictOnDelete(); $table->foreignId('activity_type_id')->nullable()->constrained()->nullOnDelete(); $table->foreignId('source_id')->nullable()->constrained('crm_sources')->nullOnDelete();
