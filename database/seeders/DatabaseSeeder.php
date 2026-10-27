@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             // manually through the application.
             BootstrapAdminSeeder::class,
             RolesAndPermissionsSeeder::class,
+            ChartOfAccountsSeeder::class,
         ]);
     }
 }

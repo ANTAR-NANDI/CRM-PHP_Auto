@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AccountVoucher;
 use App\Models\ChartOfAccount;
 use App\Models\Customer;
+use App\Models\GoodsReceipt;
 use App\Models\PartyTransaction;
 use App\Models\Purchase;
 use App\Models\Sale;
@@ -29,17 +30,21 @@ class PartyTransactionController extends Controller
     public function create(string $type): View
     {
         $this->ensureType($type);
-        $cashAccounts = ChartOfAccount::query()->where('is_active', true)->where('is_transactional', true)->where('account_type', 'asset')->orderBy('code')->get();
+        $cashAccountParentIds = ChartOfAccount::query()->whereIn('code', ['1000101', '1000102', '1000103'])->pluck('id');
+        $cashAccounts = ChartOfAccount::query()->where('is_active', true)->where('is_transactional', true)->where('account_type', 'asset')->where(fn ($query) => $query->whereIn('id', $cashAccountParentIds)->orWhereIn('parent_id', $cashAccountParentIds))->orderBy('code')->get();
         $customers = Customer::query()->where('is_active', true)->where('due_balance', '>', 0)->orderBy('name')->get();
         // List every supplier so inactive/master-data issues are visible instead
         // of silently leaving the payment dropdown empty.
         $suppliers = Supplier::query()->orderBy('name')->get();
-        // Use the Purchase model due accessor so this screen always matches the
-        // Purchase Invoice's Total − Paid = Due calculation.
         $supplierDues = Purchase::query()
             ->get(['supplier_id', 'total', 'paid'])
             ->groupBy('supplier_id')
             ->map(fn ($purchases) => $purchases->sum(fn (Purchase $purchase) => (float) $purchase->due));
+        GoodsReceipt::query()->get(['supplier_id', 'total_amount', 'paid_amount'])
+            ->groupBy('supplier_id')
+            ->each(function ($receipts, $supplierId) use ($supplierDues) {
+                $supplierDues->put($supplierId, (float) $supplierDues->get($supplierId, 0) + $receipts->sum(fn (GoodsReceipt $receipt) => (float) $receipt->due));
+            });
 
         return view('admin.party-transactions.create', compact('type', 'cashAccounts', 'customers', 'suppliers', 'supplierDues'));
     }
@@ -56,7 +61,8 @@ class PartyTransactionController extends Controller
             'narration' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $cash = ChartOfAccount::query()->whereKey($data['cash_account_id'])->where('is_active', true)->where('is_transactional', true)->where('account_type', 'asset')->firstOrFail();
+        $cashAccountParentIds = ChartOfAccount::query()->whereIn('code', ['1000101', '1000102', '1000103'])->pluck('id');
+        $cash = ChartOfAccount::query()->whereKey($data['cash_account_id'])->where('is_active', true)->where('is_transactional', true)->where('account_type', 'asset')->where(fn ($query) => $query->whereIn('id', $cashAccountParentIds)->orWhereIn('parent_id', $cashAccountParentIds))->firstOrFail();
         $transaction = DB::transaction(function () use ($data, $type, $cash, $request): PartyTransaction {
             $amount = (float) $data['amount'];
             if ($type === 'customer_receive') {
@@ -71,10 +77,7 @@ class PartyTransactionController extends Controller
                 $numberPrefix = 'CR';
             } else {
                 $party = Supplier::query()->lockForUpdate()->findOrFail($data['supplier_id']);
-                $due = (float) Purchase::query()
-                    ->where('supplier_id', $party->id)
-                    ->get(['total', 'paid'])
-                    ->sum(fn (Purchase $purchase) => (float) $purchase->due);
+                $due = $this->supplierDue($party);
                 if ($amount > $due + 0.001) {
                     throw ValidationException::withMessages(['amount' => 'Payment amount cannot exceed the supplier outstanding balance.']);
                 }
@@ -129,6 +132,20 @@ class PartyTransactionController extends Controller
             $remaining -= $applied;
             if ($remaining < 0.001) break;
         }
+        foreach (GoodsReceipt::query()->where('supplier_id', $supplier->id)->orderBy('mrr_date')->lockForUpdate()->get() as $receipt) {
+            if ($remaining < 0.001 || (float) $receipt->due <= 0) {
+                continue;
+            }
+            $applied = min($remaining, (float) $receipt->total_amount - (float) $receipt->paid_amount);
+            $receipt->increment('paid_amount', $applied);
+            $remaining -= $applied;
+        }
+    }
+
+    private function supplierDue(Supplier $supplier): float
+    {
+        return (float) Purchase::query()->where('supplier_id', $supplier->id)->get(['total', 'paid'])->sum(fn (Purchase $purchase) => (float) $purchase->due)
+            + (float) GoodsReceipt::query()->where('supplier_id', $supplier->id)->get(['total_amount', 'paid_amount'])->sum(fn (GoodsReceipt $receipt) => (float) $receipt->due);
     }
 
     private function ensureType(string $type): void { abort_unless(in_array($type, ['customer_receive', 'supplier_payment'], true), 404); }

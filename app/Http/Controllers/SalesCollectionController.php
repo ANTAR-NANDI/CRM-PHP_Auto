@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CustomerVehicleSale;
+use App\Models\ChartOfAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -16,10 +17,17 @@ class SalesCollectionController extends Controller
             ->select('customer_vehicle_sales.*', 'customers.name as customer_name')
             ->latest('sale_date')->get();
 
+        $cashAccountParentIds = ChartOfAccount::query()->whereIn('code', ['1000101', '1000102', '1000103'])->pluck('id');
+        $cashAccounts = ChartOfAccount::query()->leftJoin('chart_of_accounts as parent', 'chart_of_accounts.parent_id', '=', 'parent.id')
+            ->where('chart_of_accounts.is_active', true)->where('chart_of_accounts.is_transactional', true)->where('chart_of_accounts.account_type', 'asset')
+            ->where(fn ($query) => $query->whereIn('chart_of_accounts.id', $cashAccountParentIds)->orWhereIn('chart_of_accounts.parent_id', $cashAccountParentIds))
+            ->orderBy('chart_of_accounts.code')->get(['chart_of_accounts.id', 'chart_of_accounts.code', 'chart_of_accounts.name', 'parent.code as parent_code']);
+
         return view('sales-collections.create', [
             'sales' => $sales,
             'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'cheques' => DB::table('cheques')->where('status', 'in_hand')->latest()->get(['id', 'cheque_no', 'amount']),
+            'cashAccounts' => $cashAccounts,
         ]);
     }
 
@@ -31,10 +39,14 @@ class SalesCollectionController extends Controller
             'amount' => ['required', 'numeric', 'min:.01'],
             'received_at' => ['required', 'date'],
             'payment_mode' => ['required', 'in:cash,bank,cheque,mobile_banking'],
-            'bank_head' => ['nullable', 'string', 'max:255'],
+            'cash_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
             'cheque_id' => ['nullable', 'exists:cheques,id'],
             'remarks' => ['nullable', 'string', 'max:5000'],
         ]);
+
+        $cashAccountParentIds = ChartOfAccount::query()->whereIn('code', ['1000101', '1000102', '1000103'])->pluck('id');
+        $cashAccount = ChartOfAccount::query()->whereKey($data['cash_account_id'])->where('is_active', true)->where('is_transactional', true)->where('account_type', 'asset')
+            ->where(fn ($query) => $query->whereIn('id', $cashAccountParentIds)->orWhereIn('parent_id', $cashAccountParentIds))->firstOrFail();
 
         $sale = CustomerVehicleSale::findOrFail($data['customer_vehicle_sale_id']);
         $collected = DB::table('sales_collections')->where('customer_vehicle_sale_id', $sale->id)->sum('amount');
@@ -44,7 +56,8 @@ class SalesCollectionController extends Controller
         }
 
         $chequeId = $data['cheque_id'] ?? null;
-        unset($data['cheque_id']);
+        unset($data['cheque_id'], $data['cash_account_id']);
+        $data['bank_head'] = $cashAccount->code.' — '.$cashAccount->name;
         $collectionId = DB::table('sales_collections')->insertGetId($data + ['created_at' => now(), 'updated_at' => now()]);
         if ($chequeId) DB::table('cheques')->where('id', $chequeId)->update(['sales_collection_id' => $collectionId, 'updated_at' => now()]);
 

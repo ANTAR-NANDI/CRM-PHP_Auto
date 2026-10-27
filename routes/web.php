@@ -24,6 +24,7 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\LeadStatusHistoryController;
 use App\Http\Controllers\TodoController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\OrganizationController;
@@ -107,12 +108,17 @@ Route::middleware(['auth', 'permission:leads.manage'])->prefix('crm')->group(fun
     Route::get('leads', [LeadController::class, 'index'])->name('leads.index');
     Route::get('leads/create', [LeadController::class, 'create'])->name('leads.create');
     Route::post('leads', [LeadController::class, 'store'])->name('leads.store');
+    Route::get('leads/{lead}/edit', [LeadController::class, 'edit'])->name('leads.edit');
+    Route::get('leads/{lead}/history', [LeadController::class, 'history'])->name('leads.history');
+    Route::get('lead-status-view', [LeadStatusHistoryController::class, 'index'])->name('leads.status-history.index');
+    Route::put('leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
 });
 Route::middleware(['auth', 'permission:todos.manage'])->prefix('crm')->group(function () {
     Route::get('todos', [TodoController::class, 'index'])->name('todos.index');
     Route::get('todos/create', [TodoController::class, 'create'])->name('todos.create');
     Route::post('todos', [TodoController::class, 'store'])->name('todos.store');
     Route::patch('todos/{todo}/complete', [TodoController::class, 'complete'])->name('todos.complete');
+    Route::patch('todos/{todo}/status', [TodoController::class, 'updateStatus'])->name('todos.status');
     Route::get('todo-subjects', [TodoController::class, 'subjects'])->name('todos.subjects');
 });
 Route::middleware(['auth', 'permission:contacts.manage'])->prefix('crm')->group(function () { Route::get('contacts',[ContactController::class,'index'])->name('contacts.index'); Route::get('contacts/create',[ContactController::class,'create'])->name('contacts.create'); Route::post('contacts',[ContactController::class,'store'])->name('contacts.store'); });

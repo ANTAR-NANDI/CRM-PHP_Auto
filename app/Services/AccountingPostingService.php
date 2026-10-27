@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AccountVoucher;
 use App\Models\ChartOfAccount;
+use App\Models\GoodsReceipt;
 use App\Models\Purchase;
 use App\Models\Sale;
 use App\Models\User;
@@ -19,6 +20,19 @@ class AccountingPostingService
             ->when((float) $purchase->total - (float) $purchase->paid > 0, fn (Collection $rows) => $rows->push(['account' => $supplier, 'debit' => 0, 'credit' => round((float) $purchase->total - (float) $purchase->paid, 2)]));
 
         return $this->post('journal', $purchase->purchased_at, "Purchase {$purchase->invoice_number}", $entries, $user);
+    }
+
+    public function postGoodsReceipt(GoodsReceipt $receipt, ?ChartOfAccount $cashAccount, User $user): AccountVoucher
+    {
+        $supplier = app(PartyAccountService::class)->forSupplier($receipt->supplier);
+        $paid = (float) $receipt->paid_amount;
+        $due = max(0, (float) $receipt->total_amount - $paid);
+
+        $entries = collect([['account' => $this->account('100010401'), 'debit' => (float) $receipt->total_amount, 'credit' => 0]])
+            ->when($paid > 0, fn (Collection $rows) => $rows->push(['account' => $cashAccount, 'debit' => 0, 'credit' => $paid]))
+            ->when($due > 0, fn (Collection $rows) => $rows->push(['account' => $supplier, 'debit' => 0, 'credit' => $due]));
+
+        return $this->post('journal', $receipt->mrr_date, "Goods received {$receipt->mrr_no}", $entries, $user);
     }
 
     public function postSale(Sale $sale, float $cost, User $user): AccountVoucher

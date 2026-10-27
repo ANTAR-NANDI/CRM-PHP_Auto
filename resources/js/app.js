@@ -2,8 +2,6 @@ import './bootstrap';
 
 import Alpine from 'alpinejs';
 import $ from 'jquery';
-import select2 from 'select2';
-import 'select2/dist/css/select2.css';
 import DataTable from 'datatables.net-dt';
 import 'datatables.net-dt/css/dataTables.dataTables.css';
 import 'datatables.net-buttons-dt';
@@ -15,31 +13,10 @@ import pdfFonts from 'pdfmake/build/vfs_fonts';
 window.Alpine = Alpine;
 window.$ = window.jQuery = $;
 
-// Select2 4.0 still calls this jQuery helper, removed by jQuery 4.
-// Keep the application bundle compatible until Select2 is upgraded.
-$.isArray ??= Array.isArray;
-
-select2($);
 pdfMake.addVirtualFileSystem(pdfFonts);
 DataTable.Buttons.pdfMake(pdfMake);
 
-const initializeSearchableSelects = (root = document) => {
-    $(root).find('select:not(.select2-hidden-accessible):not([data-native-select])').each(function () {
-        // Alpine-managed and template-generated selects need to remain native controls.
-        if (this.hasAttribute('x-model') || this.hasAttribute(':name') || this.closest('template')) {
-            return;
-        }
-
-        $(this).select2({
-            width: '100%',
-            dropdownAutoWidth: true,
-        });
-    });
-};
-
 document.addEventListener('DOMContentLoaded', () => {
-    initializeSearchableSelects();
-
     const activityTable = document.querySelector('#activities-table');
     if (activityTable) {
         new DataTable(activityTable, {

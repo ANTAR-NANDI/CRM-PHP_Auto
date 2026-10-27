@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Activity;
+use App\Models\CustomerVehicleSale;
+use App\Models\GoodsReceipt;
 use App\Models\Lead;
 use App\Models\MedicineBatch;
 use App\Models\Product;
@@ -81,6 +83,53 @@ class DashboardController extends Controller
             ->orderBy('crm_pipelines.name')
             ->get();
 
+        $canViewAllSales = $request->user()->can('sales.view-all');
+        $vehicleSales = CustomerVehicleSale::query()
+            ->when(! $canViewAllSales, fn ($query) => $query->where('sales_person_id', $request->user()->id));
+        $salesCollections = DB::table('sales_collections')
+            ->join('customer_vehicle_sales as collection_sale', 'sales_collections.customer_vehicle_sale_id', '=', 'collection_sale.id')
+            ->when(! $canViewAllSales, fn ($query) => $query->where('collection_sale.sales_person_id', $request->user()->id));
+
+        $totalVehicleSales = (float) (clone $vehicleSales)->sum('final_price');
+        $totalBookingReceived = (float) (clone $vehicleSales)->sum('paid_amount');
+        $totalLaterCollections = (float) (clone $salesCollections)->sum('sales_collections.amount');
+        $totalReceived = $totalBookingReceived + $totalLaterCollections;
+        $customerDue = max(0, $totalVehicleSales - $totalReceived);
+        $todayVehicleSales = (float) (clone $vehicleSales)->whereDate('sale_date', $today)->sum('final_price');
+        $todayBookingReceived = (float) (clone $vehicleSales)->whereDate('payment_date', $today)->sum('paid_amount');
+        $todayLaterCollections = (float) (clone $salesCollections)->whereDate('sales_collections.received_at', $today)->sum('sales_collections.amount');
+
+        $receivedByProduct = DB::table('goods_receipt_items')
+            ->selectRaw('product_id, SUM(quantity) AS received_quantity, SUM(amount) AS received_value')
+            ->groupBy('product_id');
+        $soldByProduct = CustomerVehicleSale::query()
+            ->selectRaw('product_id, SUM(quantity) AS sold_quantity')
+            ->whereNotNull('product_id')
+            ->groupBy('product_id');
+        $vehicleInventory = Product::query()
+            ->leftJoinSub($receivedByProduct, 'received', fn ($join) => $join->on('products.id', '=', 'received.product_id'))
+            ->leftJoinSub($soldByProduct, 'sold', fn ($join) => $join->on('products.id', '=', 'sold.product_id'))
+            ->where('products.is_active', true)
+            ->select('products.id', 'products.name', 'products.part_no', 'products.unit')
+            ->selectRaw('COALESCE(received.received_quantity, 0) AS received_quantity')
+            ->selectRaw('COALESCE(sold.sold_quantity, 0) AS sold_quantity')
+            ->selectRaw('GREATEST(COALESCE(received.received_quantity, 0) - COALESCE(sold.sold_quantity, 0), 0) AS available_quantity')
+            ->orderBy('products.name')
+            ->get();
+        $vehiclesReceived = (float) $vehicleInventory->sum('received_quantity');
+        $vehiclesAvailable = (float) $vehicleInventory->sum('available_quantity');
+        $soldVehicles = (float) $vehicleInventory->sum('sold_quantity');
+        $outOfStockCount = $vehicleInventory->filter(fn ($item) => (float) $item->available_quantity <= 0)->count();
+        $vehiclePurchaseValue = (float) GoodsReceipt::query()->sum('total_amount');
+        $chequeSummary = DB::table('cheques')->selectRaw("SUM(status = 'in_hand') AS in_hand, SUM(status = 'deposited') AS deposited, SUM(status IN ('cleared', 'honored')) AS cleared, SUM(status IN ('bounced', 'dishonored')) AS bounced")->first();
+        $weeklyReceipts = collect(range(6, 0))->map(function (int $daysAgo) use ($vehicleSales, $salesCollections) {
+            $date = today()->subDays($daysAgo);
+            $booking = (float) (clone $vehicleSales)->whereDate('payment_date', $date)->sum('paid_amount');
+            $collection = (float) (clone $salesCollections)->whereDate('sales_collections.received_at', $date)->sum('sales_collections.amount');
+
+            return ['label' => $daysAgo === 0 ? 'Today' : $date->format('D'), 'date' => $date->format('d M'), 'total' => $booking + $collection];
+        });
+
         return view('dashboard', [
             'todaySales' => $todaySales,
             'todayProfit' => $todayProfit,
@@ -117,6 +166,23 @@ class DashboardController extends Controller
             'calendarDays' => collect(CarbonPeriod::create($calendarStart, $calendarEnd)),
             'calendarTodos' => $calendarTodos,
             'calendarMonth' => $today->format('F Y'),
+            'totalVehicleSales' => $totalVehicleSales,
+            'totalBookingReceived' => $totalBookingReceived,
+            'totalLaterCollections' => $totalLaterCollections,
+            'totalReceived' => $totalReceived,
+            'customerDue' => $customerDue,
+            'todayVehicleSales' => $todayVehicleSales,
+            'todayBookingReceived' => $todayBookingReceived,
+            'todayLaterCollections' => $todayLaterCollections,
+            'vehiclesReceived' => $vehiclesReceived,
+            'vehiclesAvailable' => $vehiclesAvailable,
+            'soldVehicles' => $soldVehicles,
+            'outOfStockCount' => $outOfStockCount,
+            'vehiclePurchaseValue' => $vehiclePurchaseValue,
+            'chequeSummary' => $chequeSummary,
+            'weeklyReceipts' => $weeklyReceipts,
+            'maxWeeklyReceipt' => max(1, (float) $weeklyReceipts->max('total')),
+            'vehicleInventory' => $vehicleInventory,
         ]);
     }
 }

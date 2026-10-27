@@ -18,9 +18,6 @@ class TodoController extends Controller
     public function index(Request $request): View
     {
         $filters = $request->validate(['type'=>['nullable','integer','exists:todo_types,id'],'status'=>['nullable',Rule::in(['pending','completed'])],'from'=>['nullable','date'],'to'=>['nullable','date']]);
-        $filters['status'] = $filters['status'] ?? 'pending';
-        $filters['from'] = $filters['from'] ?? now()->startOfMonth()->toDateString();
-        $filters['to'] = $filters['to'] ?? now()->toDateString();
         $todos = Todo::query()->with(['type','assignee'])->when($filters['type']??null,fn($q,$id)=>$q->where('todo_type_id',$id))->when($filters['status']??null,fn($q,$status)=>$q->where('status',$status))->when($filters['from']??null,fn($q,$date)=>$q->whereDate('due_at','>=',$date))->when($filters['to']??null,fn($q,$date)=>$q->whereDate('due_at','<=',$date))->orderBy('due_at')->paginate(20)->withQueryString();
         return view('todos.index',['todos'=>$todos,'types'=>TodoType::where('is_active',true)->orderBy('name')->get(),'filters'=>$filters]);
     }
@@ -33,6 +30,12 @@ class TodoController extends Controller
         Todo::create($data); return redirect()->route('todos.index')->with('success','To-do saved successfully.');
     }
     public function complete(Todo $todo): RedirectResponse { $todo->update(['status'=>'completed','completed_at'=>now()]); return back()->with('success','Task marked complete.'); }
+    public function updateStatus(Request $request, Todo $todo): RedirectResponse
+    {
+        $status = $request->validate(['status' => ['required', Rule::in(['pending', 'completed'])]])['status'];
+        $todo->update(['status' => $status, 'completed_at' => $status === 'completed' ? now() : null]);
+        return back()->with('success', 'To-do status updated.');
+    }
     public function subjects(Request $request): JsonResponse {
         $type=$request->query('type','lead'); $query=trim((string)$request->query('q'));
         $records=$type==='customer'?Customer::query()->where('is_active',true):Lead::query();

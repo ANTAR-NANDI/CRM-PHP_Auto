@@ -6,6 +6,7 @@ use App\Models\ChartOfAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ChartOfAccountController extends Controller
@@ -42,6 +43,7 @@ class ChartOfAccountController extends Controller
             'parents' => ChartOfAccount::query()->orderBy('code')->get(),
             'defaultParentId' => $defaultParent?->id,
             'defaultAccountType' => $defaultParent?->account_type ?? 'asset',
+            'childCodesByParent' => $this->childCodesByParent(),
         ]);
     }
 
@@ -54,7 +56,11 @@ class ChartOfAccountController extends Controller
 
     public function edit(ChartOfAccount $account): View
     {
-        return view('admin.accounts.edit', ['account' => $account, 'parents' => ChartOfAccount::query()->whereKeyNot($account)->orderBy('code')->get()]);
+        return view('admin.accounts.edit', [
+            'account' => $account,
+            'parents' => ChartOfAccount::query()->whereKeyNot($account)->orderBy('code')->get(),
+            'childCodesByParent' => $this->childCodesByParent($account),
+        ]);
     }
 
     public function update(Request $request, ChartOfAccount $account): RedirectResponse
@@ -78,7 +84,7 @@ class ChartOfAccountController extends Controller
     private function validated(Request $request, ?ChartOfAccount $account = null): array
     {
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:30', Rule::unique('chart_of_accounts')->ignore($account)],
+            'code' => ['nullable', 'string', 'max:30', Rule::unique('chart_of_accounts')->ignore($account)],
             'name' => ['required', 'string', 'max:255'],
             'parent_id' => ['nullable', 'integer', Rule::exists('chart_of_accounts', 'id')->whereNot('id', $account?->id)],
             'account_type' => ['required', Rule::in(['asset', 'liability', 'equity', 'income', 'expense'])],
@@ -91,10 +97,68 @@ class ChartOfAccountController extends Controller
             return abort(422, 'A sub account must have the same account type as its parent.');
         }
 
+        if ($parent) {
+            // Child heads always follow the parent's sequence: parent × 10 + 1,
+            // then the next available number for each later child.
+            $data['code'] = ! $account || $account->parent_id !== $parent->id
+                ? $this->nextChildCode($parent, $account)
+                : $account->code;
+        } elseif (blank($data['code'] ?? null)) {
+            throw ValidationException::withMessages(['code' => 'Account code is required for a primary account head.']);
+        }
+
         $data['level'] = $parent ? $parent->level + 1 : 1;
         $data['is_transactional'] = $request->boolean('is_transactional');
         $data['is_active'] = $request->boolean('is_active');
 
         return $data;
+    }
+
+    private function childCodesByParent(?ChartOfAccount $except = null): array
+    {
+        return ChartOfAccount::query()
+            ->when($except, fn ($query) => $query->whereKeyNot($except))
+            ->whereNotNull('parent_id')
+            ->get(['parent_id', 'code'])
+            ->groupBy('parent_id')
+            ->map(fn ($children) => $children->pluck('code')->filter(fn ($code) => ctype_digit($code))->values())
+            ->all();
+    }
+
+    private function nextChildCode(ChartOfAccount $parent, ?ChartOfAccount $except = null): string
+    {
+        $codes = ChartOfAccount::query()
+            ->where('parent_id', $parent->id)
+            ->when($except, fn ($query) => $query->whereKeyNot($except))
+            ->pluck('code')
+            ->filter(fn ($code) => ctype_digit($code))
+            ->all();
+
+        if ($codes === []) {
+            return $parent->code.'1';
+        }
+
+        usort($codes, fn (string $left, string $right) => strlen($left) === strlen($right)
+            ? strcmp($left, $right)
+            : strlen($left) <=> strlen($right));
+
+        return $this->incrementNumericCode(end($codes));
+    }
+
+    private function incrementNumericCode(string $code): string
+    {
+        $digits = str_split($code);
+
+        for ($index = count($digits) - 1; $index >= 0; $index--) {
+            if ($digits[$index] !== '9') {
+                $digits[$index] = (string) ((int) $digits[$index] + 1);
+
+                return implode('', $digits);
+            }
+
+            $digits[$index] = '0';
+        }
+
+        return '1'.implode('', $digits);
     }
 }

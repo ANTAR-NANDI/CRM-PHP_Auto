@@ -18,6 +18,8 @@ class PerformanceReportController extends Controller
         ]);
         $filters['from'] = $filters['from'] ?? now()->startOfMonth()->toDateString();
         $filters['to'] = $filters['to'] ?? now()->toDateString();
+        $canViewAll = $request->user()->can('sales.view-all');
+        if (! $canViewAll) $filters['user'] = $request->user()->id;
 
         $users = User::query()
             ->when($filters['user'] ?? null, fn ($query, $userId) => $query->whereKey($userId))
@@ -36,12 +38,12 @@ class PerformanceReportController extends Controller
             ->get()->groupBy('user_id')
             ->map(fn ($records) => $records->pluck('total', 'activity_type_id'));
 
-        $leadCounts = DB::table('leads')
-            ->selectRaw('owner_id, lead_status_id, COUNT(*) as total')
-            ->whereBetween('lead_date', [$filters['from'], $filters['to']])
-            ->when($filters['user'] ?? null, fn ($query, $userId) => $query->where('owner_id', $userId))
-            ->groupBy('owner_id', 'lead_status_id')
-            ->get()->groupBy('owner_id')
+        $leadCounts = DB::table('lead_status_histories')
+            ->selectRaw('changed_by, lead_status_id, COUNT(DISTINCT lead_id) as total')
+            ->whereBetween('status_date', [$filters['from'], $filters['to']])
+            ->when($filters['user'] ?? null, fn ($query, $userId) => $query->where('changed_by', $userId))
+            ->groupBy('changed_by', 'lead_status_id')
+            ->get()->groupBy('changed_by')
             ->map(fn ($records) => $records->pluck('total', 'lead_status_id'));
 
         $salesCounts = DB::table('customer_vehicle_sales as sale')
@@ -61,6 +63,6 @@ class PerformanceReportController extends Controller
             'sales' => $salesCounts->get($user->id, collect()),
         ]);
 
-        return view('performance.index', compact('filters', 'users', 'activityHeaders', 'leadHeaders', 'salesHeaders', 'rows'));
+        return view('performance.index', compact('filters', 'users', 'activityHeaders', 'leadHeaders', 'salesHeaders', 'rows', 'canViewAll'));
     }
 }

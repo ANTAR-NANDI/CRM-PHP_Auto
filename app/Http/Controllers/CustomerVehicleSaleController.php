@@ -16,7 +16,7 @@ class CustomerVehicleSaleController extends Controller
 {
     public function create(): View
     {
-        return view('customer-sales.create', [
+        return view('customer-sales.create-discount', [
             'saleNo' => 'CVS-'.now()->format('ymd').'-'.str_pad((string) (CustomerVehicleSale::count() + 1), 4, '0', STR_PAD_LEFT),
             'customers' => Customer::where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone']),
             'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(),
@@ -31,9 +31,14 @@ class CustomerVehicleSaleController extends Controller
             'sale_no' => ['required', 'string', 'max:50', 'unique:customer_vehicle_sales,sale_no'], 'sale_date' => ['required', 'date'],
             'customer_id' => ['nullable', 'exists:customers,id'], 'dealer' => ['nullable', 'string', 'max:255'], 'mode_of_sale' => ['required', 'in:cash,credit,booking'], 'delivery_point' => ['nullable', 'string', 'max:255'], 'tentative_delivery_date' => ['nullable', 'date'], 'sales_person_id' => ['nullable', 'exists:users,id'], 'remarks' => ['nullable', 'string', 'max:5000'],
             'segment_id' => ['nullable', 'exists:crm_segments,id'], 'product_id' => ['nullable', 'exists:products,id'], 'color' => ['nullable', 'string', 'max:100'], 'quantity' => ['required', 'integer', 'min:1'], 'body_type' => ['nullable', 'string', 'max:100'], 'tyre_size' => ['nullable', 'string', 'max:100'], 'seat_capacity' => ['nullable', 'integer', 'min:1'], 'registration_type' => ['required', 'in:individual,company'], 'registration_place' => ['nullable', 'string', 'max:100'], 'vehicle_tracker' => ['nullable', 'boolean'],
-            'offered_price' => ['nullable', 'numeric', 'min:0'], 'unit_price' => ['nullable', 'numeric', 'min:0'], 'final_price' => ['nullable', 'numeric', 'min:0'], 'paid_amount' => ['nullable', 'numeric', 'min:0'], 'payment_date' => ['nullable', 'date'], 'payment_mode' => ['required', 'in:cash,bank,cheque,mobile_banking'],
+            'offered_price' => ['nullable', 'numeric', 'min:0'], 'unit_price' => ['required', 'numeric', 'min:0'], 'discount_amount' => ['nullable', 'numeric', 'min:0'], 'paid_amount' => ['nullable', 'numeric', 'min:0'], 'payment_date' => ['nullable', 'date'], 'payment_mode' => ['required', 'in:cash,bank,cheque,mobile_banking'],
         ]);
         $data['vehicle_tracker'] = $request->boolean('vehicle_tracker');
+        $data['discount_amount'] = (float) ($data['discount_amount'] ?? 0);
+        $grossAmount = (float) $data['unit_price'] * (int) $data['quantity'];
+        if ($data['discount_amount'] > $grossAmount) return back()->withInput()->withErrors(['discount_amount' => 'Discount cannot exceed the vehicle total amount.']);
+        $data['final_price'] = $grossAmount - $data['discount_amount'];
+        if ((float) ($data['paid_amount'] ?? 0) > $data['final_price']) return back()->withInput()->withErrors(['paid_amount' => 'Paid amount cannot exceed the amount after discount.']);
         CustomerVehicleSale::create($data);
         return redirect()->route('customer-sales.index')->with('success', 'Customer sale saved successfully.');
     }

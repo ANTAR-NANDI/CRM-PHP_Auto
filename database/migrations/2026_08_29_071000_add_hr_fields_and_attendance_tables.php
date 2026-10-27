@@ -9,13 +9,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('employee_code')->nullable()->unique()->after('id');
-            $table->string('phone', 50)->nullable()->after('email');
-            $table->string('designation')->nullable()->after('phone');
-            $table->date('joining_date')->nullable()->after('designation');
-            $table->decimal('salary', 12, 2)->default(0)->after('joining_date');
-            $table->text('address')->nullable()->after('salary');
+        $columns = Schema::getColumnListing('users');
+        Schema::table('users', function (Blueprint $table) use ($columns) {
+            if (! in_array('employee_code', $columns, true)) $table->string('employee_code')->nullable()->unique()->after('id');
+            if (! in_array('phone', $columns, true)) $table->string('phone', 50)->nullable()->after('email');
+            if (! in_array('designation', $columns, true)) $table->string('designation')->nullable()->after('phone');
+            if (! in_array('joining_date', $columns, true)) $table->date('joining_date')->nullable()->after('designation');
+            if (! in_array('salary', $columns, true)) $table->decimal('salary', 12, 2)->default(0)->after('joining_date');
+            if (! in_array('address', $columns, true)) $table->text('address')->nullable()->after('salary');
         });
 
         Schema::create('attendances', function (Blueprint $table) {

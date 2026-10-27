@@ -7,7 +7,7 @@
     </x-slot>
 
     <form class="mb-5 flex flex-wrap justify-end gap-2 rounded-lg border border-slate-200 bg-white p-4">
-        <select name="user" class="rounded-md border-slate-300 py-2 text-sm"><option value="">All users</option>@foreach($users as $user)<option value="{{ $user->id }}" @selected(($filters['user'] ?? null) == $user->id)>{{ $user->name }}</option>@endforeach</select>
+        @if($canViewAll)<select name="user" class="rounded-md border-slate-300 py-2 text-sm"><option value="">All users</option>@foreach($users as $user)<option value="{{ $user->id }}" @selected(($filters['user'] ?? null) == $user->id)>{{ $user->name }}</option>@endforeach</select>@else<input type="hidden" name="user" value="{{ $filters['user'] }}"><span class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">My performance</span>@endif
         <input name="from" type="date" value="{{ $filters['from'] }}" class="rounded-md border-slate-300 py-2 text-sm">
         <input name="to" type="date" value="{{ $filters['to'] }}" class="rounded-md border-slate-300 py-2 text-sm">
         <button class="rounded-md bg-[#1f7d88] px-5 text-sm font-semibold text-white">Search</button>
