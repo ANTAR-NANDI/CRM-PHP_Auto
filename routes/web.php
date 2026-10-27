@@ -123,7 +123,7 @@ Route::middleware(['auth', 'permission:todos.manage'])->prefix('crm')->group(fun
     Route::patch('todos/{todo}/status', [TodoController::class, 'updateStatus'])->name('todos.status');
     Route::get('todo-subjects', [TodoController::class, 'subjects'])->name('todos.subjects');
 });
-Route::middleware(['auth', 'permission:contacts.manage'])->prefix('crm')->group(function () { Route::get('contacts',[ContactController::class,'index'])->name('contacts.index'); Route::get('contacts/create',[ContactController::class,'create'])->name('contacts.create'); Route::post('contacts',[ContactController::class,'store'])->name('contacts.store'); });
+Route::middleware(['auth', 'permission:contacts.manage'])->prefix('crm')->group(function () { Route::get('contacts',[ContactController::class,'index'])->name('contacts.index'); Route::get('contacts/create',[ContactController::class,'create'])->name('contacts.create'); Route::post('contacts',[ContactController::class,'store'])->name('contacts.store'); Route::get('contacts/{contact}/edit',[ContactController::class,'edit'])->name('contacts.edit'); Route::put('contacts/{contact}',[ContactController::class,'update'])->name('contacts.update'); Route::delete('contacts/{contact}',[ContactController::class,'destroy'])->name('contacts.destroy'); });
 Route::middleware(['auth', 'permission:organizations.manage'])->prefix('crm/organizations')->group(function () {
     Route::get('/', [OrganizationController::class, 'index'])->name('organizations.index');
     Route::get('create', [OrganizationController::class, 'create'])->name('organizations.create');

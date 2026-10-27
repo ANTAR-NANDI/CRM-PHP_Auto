@@ -106,6 +106,9 @@ class LeadController extends Controller
 
     private function lookups(): array
     {
-        return ['organizations'=>DB::table('crm_organizations')->where('is_active',true)->orderBy('name')->get(), 'segments'=>DB::table('crm_segments')->where('is_active',true)->orderBy('name')->get(), 'statuses'=>DB::table('crm_lead_statuses')->where('is_active',true)->orderBy('name')->get(), 'pipelines'=>DB::table('crm_pipelines')->where('is_active',true)->orderBy('name')->get(), 'sources'=>DB::table('crm_sources')->where('is_active',true)->orderBy('name')->get(), 'colors'=>DB::table('crm_colors')->where('is_active',true)->orderBy('name')->get(), 'products'=>Product::where('is_active',true)->orderBy('name')->get(['id','name']), 'users'=>User::where('is_active',true)->orderBy('name')->get(['id','name']), 'activityTypes'=>ActivityType::where('is_active',true)->orderBy('name')->get(['id','name'])];
+        $users = User::where('is_active', true)->orderBy('name');
+        if (! auth()->user()?->can('sales.view-all')) $users->whereKey(auth()->id());
+
+        return ['organizations'=>DB::table('crm_organizations')->where('is_active',true)->orderBy('name')->get(), 'segments'=>DB::table('crm_segments')->where('is_active',true)->orderBy('name')->get(), 'statuses'=>DB::table('crm_lead_statuses')->where('is_active',true)->orderBy('name')->get(), 'pipelines'=>DB::table('crm_pipelines')->where('is_active',true)->orderBy('name')->get(), 'sources'=>DB::table('crm_sources')->where('is_active',true)->orderBy('name')->get(), 'colors'=>DB::table('crm_colors')->where('is_active',true)->orderBy('name')->get(), 'products'=>Product::where('is_active',true)->orderBy('name')->get(['id','name']), 'users'=>$users->get(['id','name']), 'activityTypes'=>ActivityType::where('is_active',true)->orderBy('name')->get(['id','name'])];
     }
 }

@@ -17,7 +17,7 @@ class ContactController extends Controller
         $filters = $request->validate(['type' => ['nullable', 'integer'], 'organization' => ['nullable', 'integer'], 'search' => ['nullable', 'string', 'max:255']]);
         $contacts = Contact::query()->leftJoin('crm_contact_types as type', 'contacts.contact_type_id', '=', 'type.id')->leftJoin('crm_organizations as organization', 'contacts.organization_id', '=', 'organization.id')->select('contacts.*', 'type.name as type_name', 'organization.name as organization_name')->when($filters['type'] ?? null, fn ($q, $id) => $q->where('contact_type_id', $id))->when($filters['organization'] ?? null, fn ($q, $id) => $q->where('organization_id', $id))->when($filters['search'] ?? null, fn ($q, $term) => $q->where(fn ($match) => $match->where('contacts.name', 'like', "%{$term}%")->orWhere('contacts.mobile_1', 'like', "%{$term}%")->orWhere('contacts.email', 'like', "%{$term}%")))->latest()->paginate(20)->withQueryString();
 
-        return view('contacts.index', ['contacts' => $contacts, 'filters' => $filters, 'lookups' => $this->lookups()]);
+        return view('contacts.index-actions', ['contacts' => $contacts, 'filters' => $filters, 'lookups' => $this->lookups()]);
     }
 
     public function create(): View
@@ -36,6 +36,33 @@ class ContactController extends Controller
         Contact::create($data);
 
         return redirect()->route('contacts.index')->with('success', 'Contact saved successfully.');
+    }
+
+    public function edit(Contact $contact): View
+    {
+        return view('contacts.edit', ['contact' => $contact, 'lookups' => $this->lookups()]);
+    }
+
+    public function update(Request $request, Contact $contact): RedirectResponse
+    {
+        $data = $this->validated($request);
+        $contact->update($data);
+
+        return redirect()->route('contacts.index')->with('success', 'Contact updated successfully.');
+    }
+
+    public function destroy(Contact $contact): RedirectResponse
+    {
+        $contact->delete();
+
+        return redirect()->route('contacts.index')->with('success', 'Contact deleted successfully.');
+    }
+
+    private function validated(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'], 'mobile_1' => ['nullable', 'string', 'max:50'], 'mobile_2' => ['nullable', 'string', 'max:50'], 'email' => ['nullable', 'email', 'max:255'], 'organization_id' => ['nullable', 'exists:crm_organizations,id'], 'job_title' => ['nullable', 'string', 'max:255'], 'id_type' => ['nullable', 'string', 'max:50'], 'id_number' => ['nullable', 'string', 'max:100'], 'gender' => ['nullable', 'in:male,female,other'], 'religion' => ['nullable', 'string', 'max:100'], 'birth_date' => ['nullable', 'date'], 'contact_type_id' => ['required', 'exists:crm_contact_types,id'], 'customer_identifier' => ['nullable', 'string', 'max:100'], 'product_id' => ['nullable', 'exists:products,id'], 'remarks' => ['nullable', 'string', 'max:5000'], 'present_address' => ['nullable', 'string', 'max:2000'], 'present_location_id' => ['nullable', 'exists:crm_locations,id'], 'permanent_address' => ['nullable', 'string', 'max:2000'], 'permanent_location_id' => ['nullable', 'exists:crm_locations,id'], 'father_name' => ['nullable', 'string', 'max:255'], 'mother_name' => ['nullable', 'string', 'max:255'], 'marital_status' => ['nullable', 'in:single,married,divorced,widowed'], 'spouse_name' => ['nullable', 'string', 'max:255'], 'marriage_date' => ['nullable', 'date'],
+        ]);
     }
 
     private function lookups(): array
