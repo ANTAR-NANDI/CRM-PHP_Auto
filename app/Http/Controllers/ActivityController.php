@@ -8,6 +8,7 @@ use App\Models\ActivitySubjectType;
 use App\Models\ActivityType;
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Models\CustomerVehicleSale;
 use App\Models\Lead;
 use App\Models\Organization;
 use App\Models\Todo;
@@ -28,13 +29,17 @@ class ActivityController extends Controller
         $filters = $request->validate([
             'type' => ['nullable', 'integer', 'exists:activity_types,id'],
             'user' => ['nullable', 'integer', 'exists:users,id'],
+            'lead_id' => ['nullable', 'integer', 'exists:leads,id'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date'],
         ]);
+        $canViewAll = $request->user()->can('sales.view-all');
+        if (! $canViewAll) $filters['user'] = $request->user()->id;
 
         $activities = Activity::query()->with(['type', 'subType', 'user'])
             ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('activity_type_id', $type))
             ->when($filters['user'] ?? null, fn ($query, $user) => $query->where('user_id', $user))
+            ->when($filters['lead_id'] ?? null, fn ($query, $leadId) => $query->where('subject_type', 'lead')->where('subject_id', $leadId))
             ->when($filters['from'] ?? null, fn ($query, $date) => $query->whereDate('from_at', '>=', $date))
             ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('from_at', '<=', $date))
             ->latest('from_at')->get();
@@ -42,8 +47,9 @@ class ActivityController extends Controller
         return view('activities.index', [
             'activities' => $activities,
             'types' => ActivityType::where('is_active', true)->orderBy('name')->get(),
-            'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users' => $canViewAll ? User::where('is_active', true)->orderBy('name')->get(['id', 'name']) : User::whereKey($request->user()->id)->get(['id', 'name']),
             'filters' => $filters,
+            'canViewAll' => $canViewAll,
         ]);
     }
 
@@ -149,7 +155,7 @@ class ActivityController extends Controller
             'lead' => Lead::query()->when($limited, fn ($builder) => $builder->where('owner_id', $request->user()->id))->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('phone', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'phone'])->map(fn (Lead $lead) => ['id' => $lead->id, 'label' => trim($lead->name.' · '.$lead->phone)]),
             'contact' => Contact::query()->when($limited, fn ($builder) => $storeId ? $builder->where('store_id', $storeId) : $builder->whereRaw('1 = 0'))->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('mobile_1', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'mobile_1'])->map(fn (Contact $contact) => ['id' => $contact->id, 'label' => trim($contact->name.' · '.$contact->mobile_1)]),
             'organization' => Organization::query()->where('is_active', true)->when($query, fn ($builder) => $builder->where('name', 'like', "%{$query}%"))->orderBy('name')->limit(50)->get(['id', 'name'])->map(fn (Organization $organization) => ['id' => $organization->id, 'label' => $organization->name]),
-            default => Customer::query()->where('is_active', true)->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('phone', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'phone'])->map(fn (Customer $customer) => ['id' => $customer->id, 'label' => trim($customer->name.' · '.$customer->phone)]),
+            default => Customer::query()->where('is_active', true)->when($limited, fn ($builder) => $builder->whereIn('id', CustomerVehicleSale::query()->where('sales_person_id', $request->user()->id)->whereNotNull('customer_id')->select('customer_id')))->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('phone', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'phone'])->map(fn (Customer $customer) => ['id' => $customer->id, 'label' => trim($customer->name.' · '.$customer->phone)]),
         });
     }
 

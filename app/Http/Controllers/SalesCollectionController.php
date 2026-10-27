@@ -21,7 +21,7 @@ class SalesCollectionController extends Controller
 
         $cashAccountParentIds = ChartOfAccount::query()->whereIn('code', ['1000101', '1000102', '1000103'])->pluck('id');
         $cashAccounts = ChartOfAccount::query()->leftJoin('chart_of_accounts as parent', 'chart_of_accounts.parent_id', '=', 'parent.id')
-            ->where('chart_of_accounts.is_active', true)->where('chart_of_accounts.is_transactional', true)->where('chart_of_accounts.account_type', 'asset')
+            ->where('chart_of_accounts.is_active', true)->where(fn ($query) => $query->where('chart_of_accounts.is_transactional', true)->orWhere('chart_of_accounts.code', '1000102'))->where('chart_of_accounts.account_type', 'asset')
             ->where(fn ($query) => $query->whereIn('chart_of_accounts.id', $cashAccountParentIds)->orWhereIn('chart_of_accounts.parent_id', $cashAccountParentIds))
             ->orderBy('chart_of_accounts.code')->get(['chart_of_accounts.id', 'chart_of_accounts.code', 'chart_of_accounts.name', 'parent.code as parent_code']);
 
@@ -45,7 +45,7 @@ class SalesCollectionController extends Controller
         ]);
 
         $cashAccountParentIds = ChartOfAccount::query()->whereIn('code', ['1000101', '1000102', '1000103'])->pluck('id');
-        $cashAccount = ChartOfAccount::query()->whereKey($data['cash_account_id'])->where('is_active', true)->where('is_transactional', true)->where('account_type', 'asset')
+        $cashAccount = ChartOfAccount::query()->whereKey($data['cash_account_id'])->where('is_active', true)->where(fn ($query) => $query->where('is_transactional', true)->orWhere('code', '1000102'))->where('account_type', 'asset')
             ->where(fn ($query) => $query->whereIn('id', $cashAccountParentIds)->orWhereIn('parent_id', $cashAccountParentIds))->firstOrFail();
 
         $sale = CustomerVehicleSale::findOrFail($data['customer_vehicle_sale_id']);
