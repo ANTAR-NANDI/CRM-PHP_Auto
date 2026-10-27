@@ -26,7 +26,7 @@ class TodoController extends Controller
     {
         $data=$request->validate(['todo_type_id'=>['required','exists:todo_types,id'],'subject_type'=>['required',Rule::in(['lead','customer'])],'subject_id'=>['nullable','integer'],'task_with'=>['nullable','string','max:255'],'due_at'=>['required','date'],'priority'=>['required',Rule::in(['low','medium','high','urgent'])],'assigned_to'=>['required','exists:users,id'],'remind_before_minutes'=>['required',Rule::in([0,5,10,15,30,60,1440])],'note'=>['nullable','string','max:5000']]);
         $subject=$data['subject_type']==='lead'?Lead::class:Customer::class;
-        if (!empty($data['subject_id'])&&!$subject::whereKey($data['subject_id'])->exists()) return back()->withErrors(['subject_id'=>'Choose a valid '.$data['subject_type'].'.'])->withInput();
+        if (!empty($data['subject_id'])&&!$this->canAccessSubject($request, $data['subject_type'], (int) $data['subject_id'])) return back()->withErrors(['subject_id'=>'Choose a valid '.$data['subject_type'].'.'])->withInput();
         Todo::create($data); return redirect()->route('todos.index')->with('success','To-do saved successfully.');
     }
     public function complete(Todo $todo): RedirectResponse { $todo->update(['status'=>'completed','completed_at'=>now()]); return back()->with('success','Task marked complete.'); }
@@ -38,8 +38,15 @@ class TodoController extends Controller
     }
     public function subjects(Request $request): JsonResponse {
         $type=$request->query('type','lead'); $query=trim((string)$request->query('q'));
-        $records=$type==='customer'?Customer::query()->where('is_active',true):Lead::query();
+        $records=$type==='customer'?Customer::query()->where('is_active',true):Lead::query()->when(! $request->user()->can('sales.view-all'), fn ($builder) => $builder->where('owner_id', $request->user()->id));
         $records=$records->when($query,fn($builder)=>$builder->where(fn($match)=>$match->where('name','like',"%{$query}%")->orWhere('phone','like',"%{$query}%")))->orderBy('name')->limit(50)->get(['id','name','phone']);
         return response()->json($records->map(fn($record)=>['id'=>$record->id,'label'=>trim($record->name.' · '.$record->phone)]));
+    }
+
+    private function canAccessSubject(Request $request, string $type, int $id): bool
+    {
+        if ($type === 'customer' || $request->user()->can('sales.view-all')) return ($type === 'customer' ? Customer::query() : Lead::query())->whereKey($id)->exists();
+
+        return Lead::query()->whereKey($id)->where('owner_id', $request->user()->id)->exists();
     }
 }

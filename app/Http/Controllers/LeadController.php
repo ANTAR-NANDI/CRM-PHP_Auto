@@ -69,7 +69,7 @@ class LeadController extends Controller
         $lead->update($data);
         if ($statusChanged) {
             $this->recordStatus($lead, $data['lead_status_id'], $previousStatusId, $data['status_date'] ?? now()->toDateString(), $request->user()->id, $data['status_note'] ?? null, $data['remarks'] ?? null);
-            $statusName = strtolower((string) DB::table('crm_lead_statuses')->whereKey($data['lead_status_id'])->value('name'));
+            $statusName = strtolower((string) DB::table('crm_lead_statuses')->where('id', $data['lead_status_id'])->value('name'));
             if (in_array($statusName, ['won', 'lost'], true)) {
                 Todo::query()->where('subject_type', 'lead')->where('subject_id', $lead->id)->where('status', 'pending')->update(['status' => 'completed', 'completed_at' => now()]);
             }

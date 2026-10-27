@@ -52,12 +52,16 @@ class ActivityController extends Controller
         $subjectTypes = ActivitySubjectType::where('is_active', true)->orderBy('name')->get();
         $requestedType = $request->query('subject_type');
         $defaultSubjectType = $subjectTypes->contains('key', $requestedType) ? $requestedType : 'customer';
+        $defaultSubjectId = $request->query('subject_id');
+        $subjectClass = $this->subjectModel($defaultSubjectType);
+        $defaultActivityWith = $subjectClass && $defaultSubjectId ? $subjectClass::whereKey($defaultSubjectId)->value('name') : null;
 
         return view('activities.create', [
             'types' => ActivityType::where('is_active', true)->orderBy('name')->get(),
             'subjectTypes' => $subjectTypes,
             'defaultSubjectType' => $defaultSubjectType,
-            'defaultSubjectId' => $request->query('subject_id'),
+            'defaultSubjectId' => $defaultSubjectId,
+            'defaultActivityWith' => $defaultActivityWith,
             'todoTypes' => TodoType::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -89,9 +93,10 @@ class ActivityController extends Controller
         if (! $subjectClass) {
             return back()->withErrors(['subject_type' => 'Choose a supported Activity For category.'])->withInput();
         }
-        if (! empty($data['subject_id']) && ! $subjectClass::whereKey($data['subject_id'])->exists()) {
+        if (! empty($data['subject_id']) && ! $this->canAccessSubject($request, $data['subject_type'], (int) $data['subject_id'])) {
             return back()->withErrors(['subject_id' => 'Choose a valid '.$data['subject_type'].'.'])->withInput();
         }
+        if (! empty($data['subject_id'])) $data['activity_with'] = $subjectClass::whereKey($data['subject_id'])->value('name');
 
         $data['user_id'] = $request->user()->id;
         $data['keep_todo'] = $request->boolean('keep_todo');
@@ -137,10 +142,12 @@ class ActivityController extends Controller
         $query = trim((string) $request->query('q'));
         $type = (string) $request->query('type');
         if (! ActivitySubjectType::where('key', $type)->where('is_active', true)->exists()) return response()->json([]);
+        $limited = ! $request->user()->can('sales.view-all');
+        $storeId = $request->user()->store_id;
 
         return response()->json(match ($type) {
-            'lead' => Lead::query()->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('phone', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'phone'])->map(fn (Lead $lead) => ['id' => $lead->id, 'label' => trim($lead->name.' · '.$lead->phone)]),
-            'contact' => Contact::query()->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('mobile_1', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'mobile_1'])->map(fn (Contact $contact) => ['id' => $contact->id, 'label' => trim($contact->name.' · '.$contact->mobile_1)]),
+            'lead' => Lead::query()->when($limited, fn ($builder) => $builder->where('owner_id', $request->user()->id))->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('phone', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'phone'])->map(fn (Lead $lead) => ['id' => $lead->id, 'label' => trim($lead->name.' · '.$lead->phone)]),
+            'contact' => Contact::query()->when($limited, fn ($builder) => $storeId ? $builder->where('store_id', $storeId) : $builder->whereRaw('1 = 0'))->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('mobile_1', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'mobile_1'])->map(fn (Contact $contact) => ['id' => $contact->id, 'label' => trim($contact->name.' · '.$contact->mobile_1)]),
             'organization' => Organization::query()->where('is_active', true)->when($query, fn ($builder) => $builder->where('name', 'like', "%{$query}%"))->orderBy('name')->limit(50)->get(['id', 'name'])->map(fn (Organization $organization) => ['id' => $organization->id, 'label' => $organization->name]),
             default => Customer::query()->where('is_active', true)->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('phone', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'phone'])->map(fn (Customer $customer) => ['id' => $customer->id, 'label' => trim($customer->name.' · '.$customer->phone)]),
         });
@@ -154,6 +161,17 @@ class ActivityController extends Controller
             'contact' => Contact::class,
             'organization' => Organization::class,
             default => null,
+        };
+    }
+
+    private function canAccessSubject(Request $request, string $type, int $id): bool
+    {
+        if ($request->user()->can('sales.view-all')) return (bool) $this->subjectModel($type)::whereKey($id)->exists();
+
+        return match ($type) {
+            'lead' => Lead::query()->whereKey($id)->where('owner_id', $request->user()->id)->exists(),
+            'contact' => $request->user()->store_id && Contact::query()->whereKey($id)->where('store_id', $request->user()->store_id)->exists(),
+            default => (bool) $this->subjectModel($type)::whereKey($id)->exists(),
         };
     }
 }
