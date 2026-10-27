@@ -102,9 +102,16 @@ class DashboardController extends Controller
         $receivedByProduct = DB::table('goods_receipt_items')
             ->selectRaw('product_id, SUM(quantity) AS received_quantity, SUM(amount) AS received_value')
             ->groupBy('product_id');
-        $soldByProduct = CustomerVehicleSale::query()
+        $retailSoldByProduct = DB::table('customer_vehicle_sales')
             ->selectRaw('product_id, SUM(quantity) AS sold_quantity')
             ->whereNotNull('product_id')
+            ->groupBy('product_id');
+        $dealerSoldByProduct = DB::table('dealer_sale_items')
+            ->selectRaw('product_id, SUM(quantity) AS sold_quantity')
+            ->whereNotNull('product_id')
+            ->groupBy('product_id');
+        $soldByProduct = DB::query()->fromSub($retailSoldByProduct->unionAll($dealerSoldByProduct), 'sold_rows')
+            ->selectRaw('product_id, SUM(sold_quantity) AS sold_quantity')
             ->groupBy('product_id');
         $vehicleInventory = Product::query()
             ->leftJoinSub($receivedByProduct, 'received', fn ($join) => $join->on('products.id', '=', 'received.product_id'))
@@ -122,6 +129,14 @@ class DashboardController extends Controller
         $outOfStockCount = $vehicleInventory->filter(fn ($item) => (float) $item->available_quantity <= 0)->count();
         $vehiclePurchaseValue = (float) GoodsReceipt::query()->sum('total_amount');
         $chequeSummary = DB::table('cheques')->selectRaw("SUM(status = 'in_hand') AS in_hand, SUM(status = 'deposited') AS deposited, SUM(status IN ('cleared', 'honored')) AS cleared, SUM(status IN ('bounced', 'dishonored')) AS bounced")->first();
+        $upcomingCheques = DB::table('cheques')
+            ->leftJoin('customers', 'cheques.customer_id', '=', 'customers.id')
+            ->leftJoin('customer_vehicle_sales', 'cheques.customer_vehicle_sale_id', '=', 'customer_vehicle_sales.id')
+            ->whereIn('cheques.status', ['in_hand', 'deposited'])
+            ->whereBetween('cheques.cheque_date', [$today->toDateString(), $today->copy()->addDays(7)->toDateString()])
+            ->orderBy('cheques.cheque_date')
+            ->limit(8)
+            ->get(['cheques.id', 'cheques.cheque_no', 'cheques.cheque_date', 'cheques.amount', 'cheques.status', 'cheques.account_name', 'customers.name as customer_name', 'customer_vehicle_sales.sale_no']);
         $weeklyReceipts = collect(range(6, 0))->map(function (int $daysAgo) use ($vehicleSales, $salesCollections) {
             $date = today()->subDays($daysAgo);
             $booking = (float) (clone $vehicleSales)->whereDate('payment_date', $date)->sum('paid_amount');
@@ -180,6 +195,7 @@ class DashboardController extends Controller
             'outOfStockCount' => $outOfStockCount,
             'vehiclePurchaseValue' => $vehiclePurchaseValue,
             'chequeSummary' => $chequeSummary,
+            'upcomingCheques' => $upcomingCheques,
             'weeklyReceipts' => $weeklyReceipts,
             'maxWeeklyReceipt' => max(1, (float) $weeklyReceipts->max('total')),
             'vehicleInventory' => $vehicleInventory,

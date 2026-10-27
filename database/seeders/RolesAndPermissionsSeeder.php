@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -26,13 +27,22 @@ class RolesAndPermissionsSeeder extends Seeder
             'reports.view', 'accounts.manage', 'settings.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'events.manage', 'budgets.manage', 'bulk-sms.manage', 'pre-event-plans.manage', 'agendas.manage', 'meetings.manage', 'sales-targets.manage', 'sales.manage',
         ];
 
+        $permissions = array_values(array_unique($permissions));
         foreach ($permissions as $permission) {
-            Permission::findOrCreate($permission);
+            DB::table('permissions')->insertOrIgnore([
+                'name' => $permission,
+                'guard_name' => 'web',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $admin = Role::findOrCreate('admin');
         $manager = Role::findOrCreate('manager');
         $salesExecutive = Role::findOrCreate('sales-executive');
+        $marketingExecutive = Role::findOrCreate('marketing-executive');
+        $account = Role::findOrCreate('account');
 
         $admin->syncPermissions($permissions);
         $manager->syncPermissions([
@@ -53,6 +63,21 @@ class RolesAndPermissionsSeeder extends Seeder
             'customers.manage', 'organizations.manage', 'contacts.manage',
             'leads.manage', 'activities.manage', 'todos.manage',
             'sales.manage', 'sales.view-own', 'performance-reports.view',
+        ]);
+
+        $marketingExecutive->syncPermissions([
+            'dashboard.view',
+            'products.view',
+            'customers.manage', 'organizations.manage', 'contacts.manage',
+            'leads.manage', 'activities.manage', 'todos.manage',
+            'events.manage', 'performance-reports.view',
+        ]);
+
+        $account->syncPermissions([
+            'dashboard.view',
+            'products.view', 'purchases.manage', 'suppliers.manage',
+            'sales.manage', 'sales.view-all',
+            'accounts.manage', 'reports.view', 'performance-reports.view',
         ]);
     }
 }

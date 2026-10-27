@@ -143,7 +143,16 @@ class FinancialReportController extends Controller
     {
         [$from, $to] = $this->dates($request);
         $query = AccountVoucherEntry::query()->join('account_vouchers', 'account_voucher_entries.account_voucher_id', '=', 'account_vouchers.id')->join('chart_of_accounts', 'account_voucher_entries.chart_of_account_id', '=', 'chart_of_accounts.id')->select('account_vouchers.voucher_number', 'account_vouchers.voucher_date', 'account_vouchers.voucher_type', 'account_vouchers.narration', 'chart_of_accounts.code', 'chart_of_accounts.name as account_name', 'account_voucher_entries.debit', 'account_voucher_entries.credit')->whereBetween('account_vouchers.voucher_date', [$from, $to]);
-        if ($kind === 'journal') $query->where('account_vouchers.voucher_type', 'journal'); else $query->where('chart_of_accounts.name', 'like', '%'.ucfirst($kind).'%');
+        if ($kind === 'journal') {
+            $query->where('account_vouchers.voucher_type', 'journal');
+        } elseif ($kind === 'cash') {
+            $query->where('chart_of_accounts.code', '1000101');
+        } else {
+            // Every manually-created bank account is a child of Cash at Bank (1000102).
+            // Filtering by code keeps Bank Book correct regardless of the bank's display name.
+            $query->where('chart_of_accounts.code', 'like', '1000102%')
+                ->where('chart_of_accounts.code', '!=', '1000102');
+        }
         $rows = $query->orderBy('account_vouchers.voucher_date')->orderBy('account_vouchers.id')->get();
         return view('admin.reports.book', compact('title', 'from', 'to', 'rows'));
     }

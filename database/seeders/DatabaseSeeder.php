@@ -13,12 +13,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            // Intentionally only creates the initial administrator. All master,
+            // Intentionally only creates the initial administrator, roles, and permissions. All master,
             // employee, inventory, CRM, sales, and accounting data is entered
             // manually through the application.
             BootstrapAdminSeeder::class,
             RolesAndPermissionsSeeder::class,
-            ChartOfAccountsSeeder::class,
         ]);
     }
 }

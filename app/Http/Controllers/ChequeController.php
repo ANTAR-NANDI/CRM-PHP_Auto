@@ -1,2 +1,109 @@
 <?php
-namespace App\Http\Controllers;use Illuminate\Http\Request;use Illuminate\Support\Facades\DB;use Illuminate\View\View;class ChequeController extends Controller{public function index(Request $r):View{$q=DB::table('cheques');if($r->status)$q->where('status',$r->status);return view('cheques.index',['cheques'=>$q->latest('cheque_date')->paginate(25)]);}public function store(Request $r){$d=$r->validate(['account_name'=>['required'],'cheque_no'=>['required'],'cheque_date'=>['required','date'],'amount'=>['required','numeric'],'status'=>['required'],'remarks'=>['nullable']]);DB::table('cheques')->insert($d+['type'=>'receive','created_at'=>now(),'updated_at'=>now()]);return back()->with('success','Cheque saved.');}}
+
+namespace App\Http\Controllers;
+
+use App\Models\ChartOfAccount;
+use App\Models\Customer;
+use App\Models\CustomerVehicleSale;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class ChequeController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $query = DB::table('cheques')
+            ->leftJoin('customers', 'cheques.customer_id', '=', 'customers.id')
+            ->leftJoin('customer_vehicle_sales', 'cheques.customer_vehicle_sale_id', '=', 'customer_vehicle_sales.id')
+            ->select('cheques.*', 'customers.name as customer_name', 'customer_vehicle_sales.sale_no');
+        if ($request->filled('status')) $query->where('cheques.status', $request->query('status'));
+
+        return view('cheques.smooth-index', [
+            'cheques' => $query->latest('cheques.cheque_date')->paginate(25),
+            'customers' => Customer::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone']),
+            'sales' => $this->salesWithDue(),
+            'bankAccounts' => $this->bankAccounts(),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['customer_id'=>['required','exists:customers,id'],'customer_vehicle_sale_id'=>['required','exists:customer_vehicle_sales,id'],'cheque_no'=>['required','string','max:100'],'cheque_bank'=>['required','string','max:255'],'cheque_date'=>['required','date'],'amount'=>['required','numeric','min:.01'],'remarks'=>['nullable','string','max:5000']]);
+        $sale = CustomerVehicleSale::query()->whereKey($data['customer_vehicle_sale_id'])->where('customer_id', $data['customer_id'])->firstOrFail();
+        $due = $this->saleDue($sale);
+        if ((float) $data['amount'] > $due + 0.001) throw ValidationException::withMessages(['amount' => 'Cheque amount cannot exceed the remaining invoice due.']);
+        $customer = Customer::findOrFail($data['customer_id']);
+        DB::table('cheques')->insert([
+            'customer_id' => $customer->id,
+            'customer_vehicle_sale_id' => $sale->id,
+            'account_name' => $customer->name.' — '.$data['cheque_bank'],
+            'cheque_no' => $data['cheque_no'],
+            'cheque_date' => $data['cheque_date'],
+            'amount' => $data['amount'],
+            'status' => 'in_hand',
+            'type' => 'receive',
+            'remarks' => $data['remarks'] ?? null,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return back()->with('success','Cheque saved as In Hand.');
+    }
+
+    public function updateStatus(Request $request, int $cheque): RedirectResponse
+    {
+        $data = $request->validate(['status' => ['required','in:in_hand,deposited,cleared,bounced'],'cleared_cash_account_id' => ['nullable','exists:chart_of_accounts,id']]);
+        DB::transaction(function () use ($data, $cheque): void {
+            $chequeRow = DB::table('cheques')->where('id', $cheque)->lockForUpdate()->first();
+            abort_unless($chequeRow, 404);
+            if ($data['status'] === 'cleared') {
+                if ($chequeRow->sales_collection_id) {
+                    throw ValidationException::withMessages(['status' => 'This cheque is already cleared. Its bank account cannot be changed without a reversal.']);
+                }
+                $bank = $this->bankAccounts()->firstWhere('id', (int) ($data['cleared_cash_account_id'] ?? 0));
+                if (! $bank) throw ValidationException::withMessages(['cleared_cash_account_id' => 'Select the bank account where this cheque cleared.']);
+                $sale = CustomerVehicleSale::findOrFail($chequeRow->customer_vehicle_sale_id);
+                $due = $this->saleDue($sale);
+                if ((float) $chequeRow->amount > $due + 0.001) throw ValidationException::withMessages(['status' => 'Cheque amount exceeds the current invoice due.']);
+                $collectionId = DB::table('sales_collections')->insertGetId(['customer_vehicle_sale_id' => $sale->id, 'collection_type' => 'sales', 'amount' => $chequeRow->amount, 'received_at' => today()->toDateString(), 'payment_mode' => 'cheque', 'bank_head' => $bank->code.' — '.$bank->name, 'remarks' => 'Cheque '.$chequeRow->cheque_no.' cleared.', 'created_at' => now(), 'updated_at' => now()]);
+                DB::table('cheques')->where('id', $chequeRow->id)->update(['status' => 'cleared', 'cleared_cash_account_id' => $bank->id, 'cleared_at' => today()->toDateString(), 'sales_collection_id' => $collectionId, 'updated_at' => now()]);
+                return;
+            }
+
+            if ($chequeRow->sales_collection_id && $data['status'] !== 'cleared') {
+                throw ValidationException::withMessages(['status' => 'A cleared cheque cannot be changed. Create a reversal first.']);
+            }
+            DB::table('cheques')->where('id', $chequeRow->id)->update(['status' => $data['status'], 'updated_at' => now()]);
+        });
+
+        return back()->with('success', 'Cheque status updated successfully.');
+    }
+
+    private function bankAccounts()
+    {
+        $parentId = ChartOfAccount::query()->where('code', '1000102')->value('id');
+
+        return ChartOfAccount::query()->where('is_active', true)->where('is_transactional', true)->where('account_type', 'asset')
+            ->when($parentId, fn ($query) => $query->where('parent_id', $parentId), fn ($query) => $query->whereRaw('1 = 0'))
+            ->orderBy('code')->get(['id', 'code', 'name']);
+    }
+
+    private function salesWithDue()
+    {
+        $collections = DB::table('sales_collections')->selectRaw('customer_vehicle_sale_id, SUM(amount) as collected_amount')->groupBy('customer_vehicle_sale_id');
+
+        return CustomerVehicleSale::query()->leftJoin('customers', 'customer_vehicle_sales.customer_id', '=', 'customers.id')
+            ->leftJoinSub($collections, 'collections', fn ($join) => $join->on('customer_vehicle_sales.id', '=', 'collections.customer_vehicle_sale_id'))
+            ->select('customer_vehicle_sales.id', 'customer_vehicle_sales.customer_id', 'customer_vehicle_sales.sale_no', 'customer_vehicle_sales.final_price', 'customer_vehicle_sales.paid_amount', 'customers.name as customer_name', DB::raw('COALESCE(collections.collected_amount, 0) as collected_amount'))
+            ->whereNotNull('customer_vehicle_sales.customer_id')->orderByDesc('customer_vehicle_sales.sale_date')->get();
+    }
+
+    private function saleDue(CustomerVehicleSale $sale): float
+    {
+        $collected = (float) DB::table('sales_collections')->where('customer_vehicle_sale_id', $sale->id)->sum('amount');
+
+        return max(0, (float) $sale->final_price - (float) $sale->paid_amount - $collected);
+    }
+}

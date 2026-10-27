@@ -12,9 +12,11 @@ class SalesCollectionController extends Controller
 {
     public function create(): View
     {
+        $collectionTotals = DB::table('sales_collections')->selectRaw('customer_vehicle_sale_id, SUM(amount) as collected_amount')->groupBy('customer_vehicle_sale_id');
         $sales = CustomerVehicleSale::query()
             ->leftJoin('customers', 'customer_vehicle_sales.customer_id', '=', 'customers.id')
-            ->select('customer_vehicle_sales.*', 'customers.name as customer_name')
+            ->leftJoinSub($collectionTotals, 'collection_totals', fn ($join) => $join->on('customer_vehicle_sales.id', '=', 'collection_totals.customer_vehicle_sale_id'))
+            ->select('customer_vehicle_sales.*', 'customers.name as customer_name', DB::raw('COALESCE(collection_totals.collected_amount, 0) as collected_amount'))
             ->latest('sale_date')->get();
 
         $cashAccountParentIds = ChartOfAccount::query()->whereIn('code', ['1000101', '1000102', '1000103'])->pluck('id');
@@ -26,7 +28,6 @@ class SalesCollectionController extends Controller
         return view('sales-collections.create', [
             'sales' => $sales,
             'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'cheques' => DB::table('cheques')->where('status', 'in_hand')->latest()->get(['id', 'cheque_no', 'amount']),
             'cashAccounts' => $cashAccounts,
         ]);
     }
@@ -38,9 +39,8 @@ class SalesCollectionController extends Controller
             'collection_type' => ['required', 'in:sales,advance'],
             'amount' => ['required', 'numeric', 'min:.01'],
             'received_at' => ['required', 'date'],
-            'payment_mode' => ['required', 'in:cash,bank,cheque,mobile_banking'],
+            'payment_mode' => ['required', 'in:cash,bank,mobile_banking'],
             'cash_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'cheque_id' => ['nullable', 'exists:cheques,id'],
             'remarks' => ['nullable', 'string', 'max:5000'],
         ]);
 
@@ -50,16 +50,14 @@ class SalesCollectionController extends Controller
 
         $sale = CustomerVehicleSale::findOrFail($data['customer_vehicle_sale_id']);
         $collected = DB::table('sales_collections')->where('customer_vehicle_sale_id', $sale->id)->sum('amount');
-        $balance = max(0, (float) $sale->final_price - (float) $collected);
+        $balance = max(0, (float) $sale->final_price - (float) $sale->paid_amount - (float) $collected);
         if ((float) $data['amount'] > $balance && $data['collection_type'] === 'sales') {
             return back()->withInput()->withErrors(['amount' => 'Receive amount cannot exceed the remaining balance.']);
         }
 
-        $chequeId = $data['cheque_id'] ?? null;
-        unset($data['cheque_id'], $data['cash_account_id']);
+        unset($data['cash_account_id']);
         $data['bank_head'] = $cashAccount->code.' — '.$cashAccount->name;
-        $collectionId = DB::table('sales_collections')->insertGetId($data + ['created_at' => now(), 'updated_at' => now()]);
-        if ($chequeId) DB::table('cheques')->where('id', $chequeId)->update(['sales_collection_id' => $collectionId, 'updated_at' => now()]);
+        DB::table('sales_collections')->insertGetId($data + ['created_at' => now(), 'updated_at' => now()]);
 
         return redirect()->route('sales-collections.index')->with('success', 'Collection saved successfully.');
     }

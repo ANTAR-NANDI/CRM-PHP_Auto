@@ -24,7 +24,7 @@ class DealerDeliveryController extends Controller
         $filters = $request->validate(['dealer' => ['nullable', 'integer']]);
         $rows = $this->salesQuery()
             ->when($filters['dealer'] ?? null, fn ($q, $v) => $q->where('dealer_sales.dealer_id', $v))
-            ->havingRaw('COALESCE(SUM(dealer_sale_items.amount), 0) > dealer_sales.paid_amount')
+            ->whereRaw('COALESCE(items.total_amount, 0) > COALESCE(dealer_sales.paid_amount, 0) + COALESCE(collections.collected_amount, 0)')
             ->orderBy('dealers.name')->paginate(20)->withQueryString();
         return view('dealer-delivery.outstanding', compact('rows', 'filters') + ['dealers' => Dealer::where('is_active', true)->orderBy('name')->get()]);
     }
@@ -38,6 +38,21 @@ class DealerDeliveryController extends Controller
 
     private function salesQuery()
     {
-        return DB::table('dealer_sales')->leftJoin('dealers', 'dealer_sales.dealer_id', '=', 'dealers.id')->leftJoin('dealer_sale_items', 'dealer_sale_items.dealer_sale_id', '=', 'dealer_sales.id')->select('dealer_sales.id', 'dealer_sales.sale_no', 'dealer_sales.sale_date', 'dealer_sales.tentative_delivery_date', 'dealer_sales.delivery_point', 'dealer_sales.paid_amount', 'dealers.name as dealer_name', DB::raw('COALESCE(SUM(dealer_sale_items.quantity), 0) as total_quantity'), DB::raw('COALESCE(SUM(dealer_sale_items.amount), 0) as total_amount'))->groupBy('dealer_sales.id', 'dealer_sales.sale_no', 'dealer_sales.sale_date', 'dealer_sales.tentative_delivery_date', 'dealer_sales.delivery_point', 'dealer_sales.paid_amount', 'dealers.name');
+        $items = DB::table('dealer_sale_items')
+            ->selectRaw('dealer_sale_id, SUM(quantity) as total_quantity, SUM(amount) as total_amount')
+            ->groupBy('dealer_sale_id');
+        $collections = DB::table('dealer_collections')
+            ->selectRaw('dealer_sale_id, SUM(amount) as collected_amount')
+            ->groupBy('dealer_sale_id');
+
+        return DB::table('dealer_sales')
+            ->leftJoin('dealers', 'dealer_sales.dealer_id', '=', 'dealers.id')
+            ->leftJoinSub($items, 'items', fn ($join) => $join->on('dealer_sales.id', '=', 'items.dealer_sale_id'))
+            ->leftJoinSub($collections, 'collections', fn ($join) => $join->on('dealer_sales.id', '=', 'collections.dealer_sale_id'))
+            ->select('dealer_sales.id', 'dealer_sales.sale_no', 'dealer_sales.sale_date', 'dealer_sales.tentative_delivery_date', 'dealer_sales.delivery_point', 'dealer_sales.paid_amount', 'dealers.name as dealer_name')
+            ->selectRaw('COALESCE(items.total_quantity, 0) as total_quantity')
+            ->selectRaw('COALESCE(items.total_amount, 0) as total_amount')
+            ->selectRaw('COALESCE(collections.collected_amount, 0) as collected_amount')
+            ->selectRaw('COALESCE(dealer_sales.paid_amount, 0) + COALESCE(collections.collected_amount, 0) as received_amount');
     }
 }
