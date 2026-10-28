@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\CustomerVehicleSale;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\AccountingPostingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,13 @@ class CustomerVehicleSaleController extends Controller
         if ($data['discount_amount'] > $grossAmount) return back()->withInput()->withErrors(['discount_amount' => 'Discount cannot exceed the vehicle total amount.']);
         $data['final_price'] = $grossAmount - $data['discount_amount'];
         if ((float) ($data['paid_amount'] ?? 0) > $data['final_price']) return back()->withInput()->withErrors(['paid_amount' => 'Paid amount cannot exceed the amount after discount.']);
-        CustomerVehicleSale::create($data);
+        $due = max(0, (float) $data['final_price'] - (float) ($data['paid_amount'] ?? 0));
+        if ($due > 0 && empty($data['customer_id'])) return back()->withInput()->withErrors(['customer_id' => 'Select a customer when the vehicle sale has a remaining due amount.']);
+        DB::transaction(function () use ($data, $request): void {
+            $sale = CustomerVehicleSale::create($data);
+            $voucher = app(AccountingPostingService::class)->postCustomerVehicleSale($sale->load('customer'), $request->user());
+            $sale->update(['account_voucher_id' => $voucher->id]);
+        });
         return redirect()->route('customer-sales.index')->with('success', 'Customer sale saved successfully.');
     }
 
@@ -64,13 +71,18 @@ class CustomerVehicleSaleController extends Controller
 
     public function export(CustomerVehicleSale $customerSale): View
     {
+        $collections = DB::table('sales_collections')
+            ->selectRaw('customer_vehicle_sale_id, COALESCE(SUM(amount), 0) as collected_amount')
+            ->groupBy('customer_vehicle_sale_id');
+
         $sale = CustomerVehicleSale::query()
             ->leftJoin('customers as customer', 'customer_vehicle_sales.customer_id', '=', 'customer.id')
             ->leftJoin('products as product', 'customer_vehicle_sales.product_id', '=', 'product.id')
             ->leftJoin('crm_segments as segment', 'customer_vehicle_sales.segment_id', '=', 'segment.id')
             ->leftJoin('users as sales_person', 'customer_vehicle_sales.sales_person_id', '=', 'sales_person.id')
+            ->leftJoinSub($collections, 'collections', fn ($join) => $join->on('customer_vehicle_sales.id', '=', 'collections.customer_vehicle_sale_id'))
             ->where('customer_vehicle_sales.id', $customerSale->id)
-            ->select('customer_vehicle_sales.*', 'customer.name as customer_name', 'customer.phone as customer_phone', 'customer.address as customer_address', 'product.name as product_name', 'segment.name as segment_name', 'sales_person.name as sales_person_name')
+            ->select('customer_vehicle_sales.*', 'customer.name as customer_name', 'customer.phone as customer_phone', 'customer.address as customer_address', 'product.name as product_name', 'segment.name as segment_name', 'sales_person.name as sales_person_name', DB::raw('COALESCE(collections.collected_amount, 0) as collected_amount'))
             ->firstOrFail();
 
         return view('customer-sales.export', compact('sale'));

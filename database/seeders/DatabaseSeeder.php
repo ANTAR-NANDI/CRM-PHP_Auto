@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             // employee, inventory, CRM, sales, and accounting data is entered
             // manually through the application.
             BootstrapAdminSeeder::class,
+            PermissionSeeder::class,
             RolesAndPermissionsSeeder::class,
         ]);
     }

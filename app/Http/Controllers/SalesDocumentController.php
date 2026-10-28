@@ -44,6 +44,7 @@ class SalesDocumentController extends Controller
         $selectedSaleId = $request->validate(['customer_vehicle_sale_id' => ['nullable', 'integer', 'exists:customer_vehicle_sales,id']])['customer_vehicle_sale_id'] ?? null;
         $sales = CustomerVehicleSale::query()
             ->leftJoin('customers', 'customer_vehicle_sales.customer_id', '=', 'customers.id')
+            ->where('customer_vehicle_sales.account_clearance_status', 'cleared')
             ->select('customer_vehicle_sales.id', 'customer_vehicle_sales.sale_no', 'customer_vehicle_sales.sale_date', 'customers.name as customer_name')
             ->latest('customer_vehicle_sales.sale_date')
             ->get();
@@ -54,6 +55,10 @@ class SalesDocumentController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate(['customer_vehicle_sale_id' => ['required', 'exists:customer_vehicle_sales,id'], 'title' => ['required', 'string', 'max:255'], 'file' => ['required', 'file', 'max:10240'], 'remarks' => ['nullable', 'string', 'max:5000']]);
+        $saleIsCleared = CustomerVehicleSale::query()->whereKey($data['customer_vehicle_sale_id'])->where('account_clearance_status', 'cleared')->exists();
+        if (! $saleIsCleared) {
+            return back()->withInput()->withErrors(['customer_vehicle_sale_id' => 'Accounts clearance is required before adding a delivery challan.']);
+        }
         $file = $request->file('file');
         DB::table('sales_documents')->insert(['customer_vehicle_sale_id' => $data['customer_vehicle_sale_id'], 'title' => $data['title'], 'path' => $file->store('sales-documents', 'public'), 'original_name' => $file->getClientOriginalName(), 'remarks' => $data['remarks'] ?? null, 'user_id' => $request->user()->id, 'created_at' => now(), 'updated_at' => now()]);
         return redirect()->route('sales-documents.index')->with('success', 'Document uploaded successfully.');

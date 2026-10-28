@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AccountVoucher;
 use App\Models\ChartOfAccount;
+use App\Models\CustomerVehicleSale;
 use App\Models\GoodsReceipt;
 use App\Models\Purchase;
 use App\Models\Sale;
@@ -53,6 +54,54 @@ class AccountingPostingService
         return $this->post('journal', $sale->sold_at, "Sale {$sale->invoice_number}", $entries, $user);
     }
 
+    public function postCustomerVehicleSale(CustomerVehicleSale $sale, User $user): AccountVoucher
+    {
+        $customer = $sale->customer_id ? $sale->customer : null;
+        $paid = max(0, (float) $sale->paid_amount);
+        $total = max(0, (float) $sale->final_price);
+        $due = max(0, $total - $paid);
+
+        if ($due > 0 && ! $customer) {
+            throw new \LogicException('A customer is required when a vehicle sale has an outstanding balance.');
+        }
+
+        $entries = collect();
+        if ($paid > 0) {
+            $entries->push(['account' => $this->vehicleSalePaymentAccount($sale->payment_mode), 'debit' => $paid, 'credit' => 0]);
+        }
+        if ($due > 0) {
+            $entries->push(['account' => app(PartyAccountService::class)->forCustomer($customer), 'debit' => $due, 'credit' => 0]);
+        }
+        $entries->push(['account' => $this->account('40001'), 'debit' => 0, 'credit' => $total]);
+
+        return $this->post('journal', $sale->sale_date, "Vehicle sale {$sale->sale_no}", $entries, $user);
+    }
+
+    public function postCustomerVehicleCollection(CustomerVehicleSale $sale, ChartOfAccount $cashAccount, float $amount, mixed $receivedAt, User $user, string $reference): AccountVoucher
+    {
+        if (! $sale->customer_id) {
+            throw new \LogicException('A customer is required before a collection can be posted.');
+        }
+
+        $cashAccount = $this->resolvePostingCashAccount($cashAccount);
+        $customer = $sale->customer;
+        $entries = collect([
+            ['account' => $cashAccount, 'debit' => $amount, 'credit' => 0],
+            ['account' => app(PartyAccountService::class)->forCustomer($customer), 'debit' => 0, 'credit' => $amount],
+        ]);
+
+        return $this->post('journal', $receivedAt, $reference, $entries, $user);
+    }
+
+    public function resolvePostingCashAccount(ChartOfAccount $account): ChartOfAccount
+    {
+        if ($account->is_transactional) {
+            return $account;
+        }
+
+        return ChartOfAccount::query()->where('parent_id', $account->id)->where('is_active', true)->where('is_transactional', true)->orderBy('code')->firstOrFail();
+    }
+
     private function post(string $type, mixed $date, string $narration, Collection $entries, User $user): AccountVoucher
     {
         $amount = round((float) $entries->sum('debit'), 2);
@@ -73,6 +122,20 @@ class AccountingPostingService
     {
         return $this->account(match ($method) {
             'card' => '1000102', 'mobile_banking', 'mobile' => '1000103', default => '1000101',
+        });
+    }
+
+    private function vehicleSalePaymentAccount(string $method): ChartOfAccount
+    {
+        if ($method === 'bank') {
+            $bankParent = ChartOfAccount::query()->where('code', '1000102')->firstOrFail();
+            return $this->resolvePostingCashAccount($bankParent);
+        }
+
+        return $this->account(match ($method) {
+            'mobile_banking' => '1000103',
+            'cheque' => '1000106',
+            default => '1000101',
         });
     }
 

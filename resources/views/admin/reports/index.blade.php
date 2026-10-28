@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header"><div><p class="text-sm font-semibold text-[#203D9F]">Business intelligence</p><h1 class="mt-1 text-2xl font-black text-slate-900">Pharmacy Reports</h1><p class="mt-1 text-sm text-slate-500">Review purchases, sales, inventory value, and replenishment needs.</p></div></x-slot>
+    <x-slot name="header"><div><p class="text-sm font-semibold text-[#203D9F]">Business intelligence</p><h1 class="mt-1 text-2xl font-black text-slate-900">Automobile Reports</h1><p class="mt-1 text-sm text-slate-500">Review purchases, vehicle sales, inventory value, and replenishment needs.</p></div></x-slot>
     @include('admin.reports._tabs')
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-xl border border-violet-100 bg-white p-5 shadow-sm"><p class="text-sm font-semibold text-slate-500">Purchases this month</p><p class="mt-3 text-2xl font-black text-violet-700">৳{{ number_format($monthlyPurchases, 2) }}</p></div>

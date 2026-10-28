@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}"><title>W3 CRM — Automobile CRM</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}"><title>PHP CRM — Automobile CRM</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.min.css">
 </head>
@@ -15,7 +15,7 @@
             <div class="mx-auto flex h-full w-full max-w-[1500px] items-center justify-between px-5 lg:px-6">
                 <div class="flex min-w-0 items-center gap-3">
                     <button type="button" @click="mobileNavOpen = true" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/20 text-xl hover:bg-white/10 lg:hidden" aria-label="Open navigation menu" :aria-expanded="mobileNavOpen.toString()">☰</button>
-                    <div class="min-w-0"><p class="truncate text-sm font-semibold">W3 CRM</p><p class="hidden text-xs text-indigo-300 sm:block">Automobile CRM</p></div>
+                    <img src="{{ asset('images/php-crm-logo.jpeg') }}" alt="PHP CRM" class="h-9 w-9 rounded-full border border-white/25 bg-white object-cover"><div class="min-w-0"><p class="truncate text-sm font-semibold">PHP CRM</p><p class="hidden text-xs text-indigo-300 sm:block">Automobile CRM</p></div>
                 </div>
                 <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-white/10"><span class="grid h-8 w-8 place-items-center rounded-full bg-indigo-500 text-xs font-bold">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span><span class="hidden text-sm font-semibold sm:block">{{ auth()->user()->name }}</span></a>
             </div>
@@ -27,7 +27,7 @@
             {{ $slot }}
         </div></main>
         <footer class="border-t border-slate-200 bg-white px-5 py-4 text-center text-xs text-slate-500 print:hidden">
-            Developed by <span class="font-semibold text-slate-700">W3xplorers Bangladesh</span> · © 2026 W3 CRM
+            Powered by <span class="font-semibold text-slate-700">PHP CRM</span> · © 2026 PHP CRM
         </footer>
     </div>
 </div>

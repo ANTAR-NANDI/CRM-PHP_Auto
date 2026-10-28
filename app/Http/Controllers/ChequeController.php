@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChartOfAccount;
 use App\Models\Customer;
 use App\Models\CustomerVehicleSale;
+use App\Services\AccountingPostingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,10 +22,21 @@ class ChequeController extends Controller
             ->select('cheques.*', 'customers.name as customer_name', 'customer_vehicle_sales.sale_no');
         if ($request->filled('status')) $query->where('cheques.status', $request->query('status'));
 
+        $sales = $this->salesWithDue();
+
         return view('cheques.smooth-index', [
             'cheques' => $query->latest('cheques.cheque_date')->paginate(25),
             'customers' => Customer::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone']),
-            'sales' => $this->salesWithDue(),
+            // Prepare this before rendering. Complex expressions inside @json can
+            // be parsed incorrectly by Blade and break the whole cheque page.
+            'salesForChequeForm' => $sales->map(function ($sale): array {
+                return [
+                    'id' => $sale->id,
+                    'customer_id' => $sale->customer_id,
+                    'sale_no' => $sale->sale_no,
+                    'due' => max(0, (float) $sale->final_price - (float) $sale->paid_amount - (float) $sale->collected_amount),
+                ];
+            })->values(),
             'bankAccounts' => $this->bankAccounts(),
         ]);
     }
@@ -55,7 +67,7 @@ class ChequeController extends Controller
     public function updateStatus(Request $request, int $cheque): RedirectResponse
     {
         $data = $request->validate(['status' => ['required','in:in_hand,deposited,cleared,bounced'],'cleared_cash_account_id' => ['nullable','exists:chart_of_accounts,id']]);
-        DB::transaction(function () use ($data, $cheque): void {
+        DB::transaction(function () use ($data, $cheque, $request): void {
             $chequeRow = DB::table('cheques')->where('id', $cheque)->lockForUpdate()->first();
             abort_unless($chequeRow, 404);
             if ($data['status'] === 'cleared') {
@@ -67,7 +79,8 @@ class ChequeController extends Controller
                 $sale = CustomerVehicleSale::findOrFail($chequeRow->customer_vehicle_sale_id);
                 $due = $this->saleDue($sale);
                 if ((float) $chequeRow->amount > $due + 0.001) throw ValidationException::withMessages(['status' => 'Cheque amount exceeds the current invoice due.']);
-                $collectionId = DB::table('sales_collections')->insertGetId(['customer_vehicle_sale_id' => $sale->id, 'collection_type' => 'sales', 'amount' => $chequeRow->amount, 'received_at' => today()->toDateString(), 'payment_mode' => 'cheque', 'bank_head' => $bank->code.' — '.$bank->name, 'remarks' => 'Cheque '.$chequeRow->cheque_no.' cleared.', 'created_at' => now(), 'updated_at' => now()]);
+                $voucher = app(AccountingPostingService::class)->postCustomerVehicleCollection($sale->load('customer'), $bank, (float) $chequeRow->amount, today(), $request->user(), 'Cheque '.$chequeRow->cheque_no.' cleared for vehicle sale '.$sale->sale_no);
+                $collectionId = DB::table('sales_collections')->insertGetId(['customer_vehicle_sale_id' => $sale->id, 'collection_type' => 'sales', 'amount' => $chequeRow->amount, 'received_at' => today()->toDateString(), 'payment_mode' => 'cheque', 'bank_head' => $bank->code.' — '.$bank->name, 'remarks' => 'Cheque '.$chequeRow->cheque_no.' cleared.', 'account_voucher_id' => $voucher->id, 'created_at' => now(), 'updated_at' => now()]);
                 DB::table('cheques')->where('id', $chequeRow->id)->update(['status' => 'cleared', 'cleared_cash_account_id' => $bank->id, 'cleared_at' => today()->toDateString(), 'sales_collection_id' => $collectionId, 'updated_at' => now()]);
                 return;
             }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CustomerVehicleSale;
 use App\Models\ChartOfAccount;
+use App\Services\AccountingPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -27,6 +28,7 @@ class SalesCollectionController extends Controller
 
         return view('sales-collections.create', [
             'sales' => $sales,
+            'selectedSaleId' => request()->integer('sale_id') ?: null,
             'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'cashAccounts' => $cashAccounts,
         ]);
@@ -47,6 +49,7 @@ class SalesCollectionController extends Controller
         $cashAccountParentIds = ChartOfAccount::query()->whereIn('code', ['1000101', '1000102', '1000103'])->pluck('id');
         $cashAccount = ChartOfAccount::query()->whereKey($data['cash_account_id'])->where('is_active', true)->where(fn ($query) => $query->where('is_transactional', true)->orWhere('code', '1000102'))->where('account_type', 'asset')
             ->where(fn ($query) => $query->whereIn('id', $cashAccountParentIds)->orWhereIn('parent_id', $cashAccountParentIds))->firstOrFail();
+        $cashAccount = app(AccountingPostingService::class)->resolvePostingCashAccount($cashAccount);
 
         $sale = CustomerVehicleSale::findOrFail($data['customer_vehicle_sale_id']);
         $collected = DB::table('sales_collections')->where('customer_vehicle_sale_id', $sale->id)->sum('amount');
@@ -57,7 +60,11 @@ class SalesCollectionController extends Controller
 
         unset($data['cash_account_id']);
         $data['bank_head'] = $cashAccount->code.' — '.$cashAccount->name;
-        DB::table('sales_collections')->insertGetId($data + ['created_at' => now(), 'updated_at' => now()]);
+        DB::transaction(function () use ($data, $cashAccount, $sale, $request): void {
+            $collectionId = DB::table('sales_collections')->insertGetId($data + ['created_at' => now(), 'updated_at' => now()]);
+            $voucher = app(AccountingPostingService::class)->postCustomerVehicleCollection($sale->load('customer'), $cashAccount, (float) $data['amount'], $data['received_at'], $request->user(), 'Vehicle collection '.$sale->sale_no);
+            DB::table('sales_collections')->where('id', $collectionId)->update(['account_voucher_id' => $voucher->id, 'updated_at' => now()]);
+        });
 
         return redirect()->route('sales-collections.index')->with('success', 'Collection saved successfully.');
     }
@@ -75,6 +82,38 @@ class SalesCollectionController extends Controller
             ->when($filters['search'] ?? null, fn ($query, $value) => $query->where(fn ($match) => $match->where('sale.sale_no', 'like', "%{$value}%")->orWhere('customer.name', 'like', "%{$value}%")->orWhere('customer.phone', 'like', "%{$value}%")))
             ->latest('sales_collections.received_at')->get();
         return view('sales-collections.index', ['collections' => $collections, 'filters' => $filters, 'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(['id', 'name'])]);
+    }
+
+    public function followUp(Request $request): View
+    {
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'status' => ['nullable', 'in:all,paid,due'],
+        ]);
+        $collectionTotals = DB::table('sales_collections')
+            ->selectRaw('customer_vehicle_sale_id, SUM(amount) as collected_amount, MAX(received_at) as last_received_at')
+            ->groupBy('customer_vehicle_sale_id');
+        $chequeSummary = DB::table('cheques')
+            ->selectRaw("customer_vehicle_sale_id, MIN(CASE WHEN status IN ('in_hand', 'deposited') THEN cheque_date END) as next_cheque_date, GROUP_CONCAT(CONCAT(cheque_no, ' | ', DATE_FORMAT(cheque_date, '%d %b %Y'), ' | ', REPLACE(status, '_', ' '), ' | ', FORMAT(amount, 2)) ORDER BY cheque_date SEPARATOR '~~') as cheque_details")
+            ->groupBy('customer_vehicle_sale_id');
+
+        $sales = CustomerVehicleSale::query()
+            ->leftJoin('customers', 'customer_vehicle_sales.customer_id', '=', 'customers.id')
+            ->leftJoinSub($collectionTotals, 'collection_totals', fn ($join) => $join->on('customer_vehicle_sales.id', '=', 'collection_totals.customer_vehicle_sale_id'))
+            ->leftJoinSub($chequeSummary, 'cheque_summary', fn ($join) => $join->on('customer_vehicle_sales.id', '=', 'cheque_summary.customer_vehicle_sale_id'))
+            ->select('customer_vehicle_sales.id', 'customer_vehicle_sales.sale_no', 'customer_vehicle_sales.sale_date', 'customer_vehicle_sales.final_price', 'customer_vehicle_sales.paid_amount', 'customers.name as customer_name', 'customers.phone as customer_phone', DB::raw('COALESCE(collection_totals.collected_amount, 0) as collected_amount'), 'collection_totals.last_received_at', 'cheque_summary.next_cheque_date', 'cheque_summary.cheque_details')
+            ->when($filters['search'] ?? null, fn ($query, $value) => $query->where(fn ($match) => $match->where('customer_vehicle_sales.sale_no', 'like', "%{$value}%")->orWhere('customers.name', 'like', "%{$value}%")->orWhere('customers.phone', 'like', "%{$value}%")))
+            ->when($filters['from'] ?? null, fn ($query, $value) => $query->whereDate('customer_vehicle_sales.sale_date', '>=', $value))
+            ->when($filters['to'] ?? null, fn ($query, $value) => $query->whereDate('customer_vehicle_sales.sale_date', '<=', $value))
+            ->when(($filters['status'] ?? 'all') === 'paid', fn ($query) => $query->whereRaw('customer_vehicle_sales.final_price <= customer_vehicle_sales.paid_amount + COALESCE(collection_totals.collected_amount, 0)'))
+            ->when(($filters['status'] ?? 'all') === 'due', fn ($query) => $query->whereRaw('customer_vehicle_sales.final_price > customer_vehicle_sales.paid_amount + COALESCE(collection_totals.collected_amount, 0)'))
+            ->orderByRaw('cheque_summary.next_cheque_date IS NULL, cheque_summary.next_cheque_date')
+            ->orderByDesc('customer_vehicle_sales.sale_date')
+            ->get();
+
+        return view('sales-collections.follow-up', compact('sales', 'filters'));
     }
 
     public function export(int $collection): View

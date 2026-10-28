@@ -71,8 +71,8 @@ class FinancialReportController extends Controller
             ->whereIn('chart_of_accounts.account_type', ['income', 'expense'])
             ->groupBy('chart_of_accounts.id', 'chart_of_accounts.code', 'chart_of_accounts.name', 'chart_of_accounts.account_type')
             ->orderBy('chart_of_accounts.code')->get();
-        $income = $totals->where('account_type', 'income')->map(fn ($row) => (object) [...(array) $row, 'amount' => (float) $row->credit - (float) $row->debit]);
-        $expenses = $totals->where('account_type', 'expense')->map(fn ($row) => (object) [...(array) $row, 'amount' => (float) $row->debit - (float) $row->credit]);
+        $income = $totals->where('account_type', 'income')->map(fn ($row) => (object) ['code' => $row->code, 'name' => $row->name, 'amount' => (float) $row->credit - (float) $row->debit]);
+        $expenses = $totals->where('account_type', 'expense')->map(fn ($row) => (object) ['code' => $row->code, 'name' => $row->name, 'amount' => (float) $row->debit - (float) $row->credit]);
         $totalIncome = $income->sum('amount');
         $totalExpenses = $expenses->sum('amount');
 
@@ -116,8 +116,8 @@ class FinancialReportController extends Controller
     private function incomeExpense(Carbon $from, Carbon $to): array
     {
         $totals = AccountVoucherEntry::query()->selectRaw('chart_of_accounts.id, chart_of_accounts.code, chart_of_accounts.name, chart_of_accounts.account_type, COALESCE(SUM(account_voucher_entries.debit), 0) AS debit, COALESCE(SUM(account_voucher_entries.credit), 0) AS credit')->join('account_vouchers', 'account_voucher_entries.account_voucher_id', '=', 'account_vouchers.id')->join('chart_of_accounts', 'account_voucher_entries.chart_of_account_id', '=', 'chart_of_accounts.id')->whereBetween('account_vouchers.voucher_date', [$from, $to])->whereIn('chart_of_accounts.account_type', ['income', 'expense'])->groupBy('chart_of_accounts.id', 'chart_of_accounts.code', 'chart_of_accounts.name', 'chart_of_accounts.account_type')->orderBy('chart_of_accounts.code')->get();
-        $income = $totals->where('account_type', 'income')->map(fn ($row) => (object) [...(array) $row, 'amount' => (float) $row->credit - (float) $row->debit]);
-        $expenses = $totals->where('account_type', 'expense')->map(fn ($row) => (object) [...(array) $row, 'amount' => (float) $row->debit - (float) $row->credit]);
+        $income = $totals->where('account_type', 'income')->map(fn ($row) => (object) ['code' => $row->code, 'name' => $row->name, 'amount' => (float) $row->credit - (float) $row->debit]);
+        $expenses = $totals->where('account_type', 'expense')->map(fn ($row) => (object) ['code' => $row->code, 'name' => $row->name, 'amount' => (float) $row->debit - (float) $row->credit]);
 
         return compact('income', 'expenses') + ['totalIncome' => $income->sum('amount'), 'totalExpenses' => $expenses->sum('amount')];
     }

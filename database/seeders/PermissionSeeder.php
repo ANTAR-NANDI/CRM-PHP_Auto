@@ -20,7 +20,7 @@ class PermissionSeeder extends Seeder
             'suppliers.manage', 'brands.manage', 'generic-names.manage',
             'products.view', 'products.manage', 'purchases.manage', 'customers.manage', 'stock.adjust',
             'pos.access', 'sales.view-own', 'sales.view-all', 'sales.return',
-            'reports.view', 'accounts.manage', 'settings.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'events.manage', 'budgets.manage', 'bulk-sms.manage', 'pre-event-plans.manage', 'agendas.manage', 'meetings.manage', 'sales-targets.manage', 'sales.manage',
+            'reports.view', 'accounts.manage', 'accounts.sales-clearance.manage', 'pr.manage', 'management.manage', 'settings.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'events.manage', 'budgets.manage', 'bulk-sms.manage', 'pre-event-plans.manage', 'agendas.manage', 'meetings.manage', 'sales-targets.manage', 'sales.manage',
         ] as $name) {
             $permission = Permission::findOrCreate($name, 'web');
             [$module, $submodule] = $this->definition($name);
@@ -49,6 +49,9 @@ class PermissionSeeder extends Seeder
             'purchases.manage', 'pos.access' => ['Sales & Operations', $name === 'pos.access' ? 'Point of Sale' : 'Purchases'],
             'reports.view' => ['Reports', 'Reports'],
             'accounts.manage' => ['Accounts', 'Accounts'],
+            'accounts.sales-clearance.manage' => ['Accounts', 'Sales Clearance'],
+            'pr.manage' => ['PR', 'PR'],
+            'management.manage' => ['Management', 'Management'],
             default => ['Other', 'General'],
         };
     }

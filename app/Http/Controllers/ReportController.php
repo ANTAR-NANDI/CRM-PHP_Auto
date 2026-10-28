@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MedicineBatch;
 use App\Models\Brand;
+use App\Models\CustomerVehicleSale;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Sale;
@@ -12,6 +13,7 @@ use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
@@ -53,34 +55,24 @@ class ReportController extends Controller
 
     public function sales(Request $request): View
     {
-        [$from, $to] = $this->dates($request);
-        $employeeId = $request->integer('employee_id') ?: null;
-        $brandId = $request->integer('brand_id') ?: null;
-        $query = Sale::query()->with('user')->withCount('items')
-            ->whereBetween('sold_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
-            ->when($employeeId, fn (Builder $builder) => $builder->where('user_id', $employeeId))
-            ->when($brandId, fn (Builder $builder) => $builder->whereHas('items.product', fn (Builder $product) => $product->where('brand_id', $brandId)));
+        $filters = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from'], 'segment_id' => ['nullable', 'integer', 'exists:crm_segments,id'], 'vehicle_group' => ['nullable', 'in:all,suv,proton,mpv,eight_seat']]);
+        $from = isset($filters['from']) ? Carbon::parse($filters['from']) : today()->startOfMonth();
+        $to = isset($filters['to']) ? Carbon::parse($filters['to']) : today();
+        $vehicleGroup = $filters['vehicle_group'] ?? 'all';
+        $vehicleTypeSql = "LOWER(COALESCE(customer_vehicle_sales.body_type, products.category, ''))";
+        $base = CustomerVehicleSale::query()->leftJoin('products', 'customer_vehicle_sales.product_id', '=', 'products.id')
+            ->whereBetween('customer_vehicle_sales.sale_date', [$from->toDateString(), $to->toDateString()])
+            ->when($filters['segment_id'] ?? null, fn ($query, $value) => $query->where('customer_vehicle_sales.segment_id', $value))
+            ->when($vehicleGroup === 'suv', fn ($query) => $query->whereRaw("{$vehicleTypeSql} = 'suv'"))
+            ->when($vehicleGroup === 'proton', fn ($query) => $query->where('products.name', 'like', '%Proton%'))
+            ->when($vehicleGroup === 'mpv', fn ($query) => $query->whereRaw("{$vehicleTypeSql} IN ('mpv', 'mvp')"))
+            ->when($vehicleGroup === 'eight_seat', fn ($query) => $query->where('customer_vehicle_sales.seat_capacity', 8));
 
-        // Sales totals are invoice totals. Use the exact same filtered invoice IDs
-        // for cost, so gross profit remains accurate when a brand is selected.
-        $costQuery = SaleItem::query()->whereIn('sale_id', (clone $query)->select('id'));
-        $cost = (float) $costQuery->selectRaw('COALESCE(SUM(unit_purchase_price * quantity), 0) AS cost')->value('cost');
-        $total = (float) (clone $query)->sum('total');
+        $products = (clone $base)->selectRaw("COALESCE(products.name, 'Unspecified vehicle') as product_name, COALESCE(customer_vehicle_sales.body_type, products.category, '—') as vehicle_type, customer_vehicle_sales.seat_capacity, SUM(customer_vehicle_sales.quantity) as quantity_sold, SUM(customer_vehicle_sales.final_price) as sales_value")
+            ->groupBy('products.name', 'customer_vehicle_sales.body_type', 'products.category', 'customer_vehicle_sales.seat_capacity')->orderByDesc('quantity_sold')->get();
+        $summary = (clone $base)->selectRaw("COUNT(*) as sale_count, COALESCE(SUM(customer_vehicle_sales.quantity), 0) as quantity_sold, COALESCE(SUM(customer_vehicle_sales.final_price), 0) as sales_value, COALESCE(SUM(CASE WHEN {$vehicleTypeSql} = 'suv' THEN customer_vehicle_sales.quantity ELSE 0 END), 0) as suv_sold, COALESCE(SUM(CASE WHEN products.name LIKE '%Proton%' THEN customer_vehicle_sales.quantity ELSE 0 END), 0) as proton_sold, COALESCE(SUM(CASE WHEN {$vehicleTypeSql} IN ('mpv', 'mvp') THEN customer_vehicle_sales.quantity ELSE 0 END), 0) as mpv_sold, COALESCE(SUM(CASE WHEN customer_vehicle_sales.seat_capacity = 8 THEN customer_vehicle_sales.quantity ELSE 0 END), 0) as eight_seat_sold")->first();
 
-        return view('admin.reports.sales', [
-            'sales' => (clone $query)->latest('sold_at')->paginate(20)->withQueryString(),
-            'saleCount' => (clone $query)->count(),
-            'subtotal' => (float) (clone $query)->sum('subtotal'),
-            'discount' => (float) (clone $query)->sum('discount'),
-            'total' => $total,
-            'profit' => $total - $cost,
-            'employees' => User::query()->with('roles')->orderBy('name')->get(),
-            'brands' => Brand::query()->where('is_active', true)->orderBy('name')->get(),
-            'employeeId' => $employeeId,
-            'brandId' => $brandId,
-            'from' => $from,
-            'to' => $to,
-        ]);
+        return view('admin.reports.sales', ['products' => $products, 'summary' => $summary, 'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(), 'filters' => $filters, 'vehicleGroup' => $vehicleGroup, 'from' => $from, 'to' => $to]);
     }
 
     public function productSupplierSales(Request $request): View

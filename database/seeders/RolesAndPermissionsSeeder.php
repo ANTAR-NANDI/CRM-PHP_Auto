@@ -24,7 +24,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'suppliers.manage', 'brands.manage', 'generic-names.manage',
             'products.view', 'products.manage', 'purchases.manage', 'customers.manage', 'stock.adjust',
             'pos.access', 'sales.view-own', 'sales.view-all', 'sales.return',
-            'reports.view', 'accounts.manage', 'settings.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'events.manage', 'budgets.manage', 'bulk-sms.manage', 'pre-event-plans.manage', 'agendas.manage', 'meetings.manage', 'sales-targets.manage', 'sales.manage',
+            'reports.view', 'accounts.manage', 'accounts.sales-clearance.manage', 'pr.manage', 'management.manage', 'settings.manage', 'activities.manage', 'activity-setup.manage', 'leads.manage', 'todos.manage', 'contacts.manage', 'organizations.manage', 'performance-reports.view', 'events.manage', 'budgets.manage', 'bulk-sms.manage', 'pre-event-plans.manage', 'agendas.manage', 'meetings.manage', 'sales-targets.manage', 'sales.manage',
         ];
 
         $permissions = array_values(array_unique($permissions));
@@ -43,6 +43,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $salesExecutive = Role::findOrCreate('sales-executive');
         $marketingExecutive = Role::findOrCreate('marketing-executive');
         $account = Role::findOrCreate('account');
+        $management = Role::findOrCreate('management');
+        $pr = Role::findOrCreate('pr');
 
         $admin->syncPermissions($permissions);
         $manager->syncPermissions([
@@ -54,7 +56,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'customers.manage', 'organizations.manage', 'contacts.manage',
             'leads.manage', 'activities.manage', 'todos.manage',
             'sales-targets.manage', 'sales.manage', 'sales.view-all', 'sales.return',
-            'accounts.manage', 'reports.view', 'performance-reports.view',
+            'accounts.manage', 'accounts.sales-clearance.manage', 'management.manage', 'reports.view', 'performance-reports.view',
         ]);
 
         $salesExecutive->syncPermissions([
@@ -77,7 +79,15 @@ class RolesAndPermissionsSeeder extends Seeder
             'dashboard.view',
             'products.view', 'purchases.manage', 'suppliers.manage',
             'sales.manage', 'sales.view-all',
-            'accounts.manage', 'reports.view', 'performance-reports.view',
+            'accounts.manage', 'accounts.sales-clearance.manage', 'reports.view', 'performance-reports.view',
+        ]);
+
+        $management->syncPermissions([
+            'dashboard.view', 'management.manage', 'reports.view', 'performance-reports.view', 'sales-targets.manage', 'sales.view-all',
+        ]);
+
+        $pr->syncPermissions([
+            'dashboard.view', 'pr.manage', 'events.manage', 'budgets.manage', 'bulk-sms.manage', 'performance-reports.view',
         ]);
     }
 }

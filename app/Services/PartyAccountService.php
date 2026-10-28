@@ -27,6 +27,7 @@ class PartyAccountService
             ['1000104', 'Vehicle Inventory Control', '10001', 'asset', false],
             ['100010401', 'Vehicle Inventory', '1000104', 'asset', true],
             ['1000105', 'Customer Receivable', '10001', 'asset', false],
+            ['1000106', 'Cheques in Hand', '10001', 'asset', true],
             ['200', 'Liabilities', null, 'liability', false],
             ['20001', 'Current Liabilities', '200', 'liability', false],
             ['2000101', 'Supplier Payable', '20001', 'liability', false],
