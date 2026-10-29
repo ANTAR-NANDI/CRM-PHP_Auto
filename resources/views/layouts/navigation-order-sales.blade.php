@@ -1,0 +1,12 @@
+@if(auth()->user()->canAny(['sales-targets.manage','sales.manage','sales.return']))
+<div x-data="{ open: {{ request()->is('sales/targets*') || request()->is('sales/customer-sales*') || request()->is('sales/collections*') || request()->is('sales/cheques*') || request()->is('sales/adjustments*') || request()->is('sales/returns*') || request()->is('sales/bike-report*') || request()->is('admin/reports/sales') || request()->is('admin/ledgers/customers') ? 'true' : 'false' }} }">
+    <button type="button" @click="open = !open" class="flex w-full items-center justify-between rounded-md px-3 py-2.5 font-semibold text-indigo-100 hover:bg-white/10"><span>Order &amp; Sale Target</span><span :class="open ? 'rotate-90' : ''">›</span></button>
+    <div x-cloak x-show="open" class="space-y-0.5 pl-3">
+        @can('sales-targets.manage')<a href="{{ route('sales-targets.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Sales Target</a>@endcan
+        @can('sales.manage')<a href="{{ route('customer-sales.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Customer Sale Entry</a><a href="{{ route('dealer-sales.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Dealer Sale Entry</a><a href="{{ route('customer-sales.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Sale List</a><a href="{{ route('sales-collections.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Sale Collection</a><a href="{{ route('cheques.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Cheques</a><a href="{{ route('sales-documents.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Documents</a>@endcan
+        @can('sales.return')<a href="{{ route('sales-returns.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Sale Return List</a>@endcan
+        @can('sales.manage')<a href="{{ route('sales-adjustments.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Sale Adjustment</a>@endcan
+        @can('reports.view')<a href="{{ route('reports.sales') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Sale Report</a><a href="{{ route('ledgers.customers') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Customer Transaction Statement</a>@endcan
+    </div>
+</div>
+@endif

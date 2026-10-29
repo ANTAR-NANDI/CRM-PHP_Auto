@@ -42,6 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
             language: { search: 'Search budgets:' },
         });
     }
+
+    document.querySelectorAll('.js-data-table').forEach((table) => {
+        if (!DataTable.isDataTable(table)) {
+            new DataTable(table, { pageLength: 25, lengthMenu: [10, 25, 50, 100], order: [] });
+        }
+    });
 });
 
 Alpine.start();

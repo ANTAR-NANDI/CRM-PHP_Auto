@@ -14,7 +14,7 @@ class SalesTargetController extends Controller
 {
     public function create(): View
     {
-        return view('sales-targets.create', ['segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(), 'salesExecutives' => User::query()->where('is_active', true)->where(fn ($query) => $query->whereRaw('LOWER(COALESCE(designation, \'\')) LIKE ?', ['%sales executive%'])->orWhere('role', 'salesperson')->orWhereHas('roles', fn ($roles) => $roles->where('name', 'sales-executive')))->orderBy('name')->get(['id', 'name']), 'products' => Product::query()->select(['id', 'name', 'unit_price as selling_price'])->orderBy('name')->get()]);
+        return view('sales-targets.create', ['segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(), 'salesExecutives' => User::query()->where('is_active', true)->where(fn ($query) => $query->whereRaw('LOWER(COALESCE(designation, \'\')) LIKE ?', ['%sales executive%'])->orWhere('role', 'salesperson')->orWhereHas('roles', fn ($roles) => $roles->where('name', 'sales-executive')))->orderBy('name')->get(['id', 'name']), 'products' => Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'segment_id', 'unit_price'])]);
     }
 
     public function index(Request $request): View
@@ -51,11 +51,12 @@ class SalesTargetController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate(['sales_executive_id' => ['required', 'exists:users,id'], 'segment_id' => ['required', 'exists:crm_segments,id'], 'target_month' => ['required', 'integer', 'between:1,12'], 'target_year' => ['required', 'integer', 'between:2020,2100'], 'remarks' => ['nullable', 'string', 'max:5000'], 'items' => ['required', 'array', 'min:1'], 'items.*.product_id' => ['required', 'exists:products,id'], 'items.*.target_quantity' => ['required', 'numeric', 'min:0.01'], 'items.*.price' => ['required', 'numeric', 'min:0']]);
+        $data = $request->validate(['segment_id' => ['required', 'exists:crm_segments,id'], 'target_month' => ['required', 'integer', 'between:1,12'], 'target_year' => ['required', 'integer', 'between:2020,2100'], 'remarks' => ['nullable', 'string', 'max:5000'], 'items' => ['required', 'array', 'min:1'], 'items.*.sales_executive_id' => ['required', 'exists:users,id'], 'items.*.product_id' => ['required', 'exists:products,id'], 'items.*.target_quantity' => ['required', 'numeric', 'min:0.01'], 'items.*.price' => ['nullable', 'numeric', 'min:0'], 'items.*.target_value' => ['nullable', 'numeric', 'min:0']]);
         DB::transaction(function () use ($data): void {
-            $items = collect($data['items'])->map(fn ($x) => $x + ['target_value' => $x['target_quantity'] * $x['price']]);
-            $target = SalesTarget::create(collect($data)->except('items')->all() + ['total_quantity' => $items->sum('target_quantity'), 'total_value' => $items->sum('target_value')]);
-            $target->items()->createMany($items->all());
+            collect($data['items'])->map(fn ($x) => $x + ['price' => $x['price'] ?? 0, 'target_value' => $x['target_value'] ?? (($x['target_quantity'] ?? 0) * ($x['price'] ?? 0))])->groupBy('sales_executive_id')->each(function ($items, $salesExecutiveId) use ($data): void {
+                $target = SalesTarget::create(collect($data)->except('items', 'sales_executive_id')->all() + ['sales_executive_id' => $salesExecutiveId, 'total_quantity' => $items->sum('target_quantity'), 'total_value' => $items->sum('target_value')]);
+                $target->items()->createMany($items->map(fn ($item) => collect($item)->except('sales_executive_id')->all())->all());
+            });
         });
 
         return redirect()->route('sales-targets.index')->with('success', 'Sales target saved successfully.');

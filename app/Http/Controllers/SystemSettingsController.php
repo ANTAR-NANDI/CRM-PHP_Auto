@@ -19,6 +19,8 @@ class SystemSettingsController extends Controller
         'lead-statuses' => ['label' => 'Lead Status', 'table' => 'crm_lead_statuses', 'code' => false, 'points' => true],
         'vehicle-colors' => ['label' => 'Vehicle Color', 'table' => 'crm_colors', 'code' => false],
         'event-types' => ['label' => 'Event Type', 'table' => 'event_types', 'code' => false],
+        'notification-types' => ['label' => 'Notification Type', 'table' => 'notification_types', 'code' => false],
+        'email-settings' => ['label' => 'Email Setting', 'table' => 'email_settings', 'code' => false],
         'todo-types' => ['label' => 'Todo Type', 'table' => 'todo_types', 'code' => false],
         'locations' => ['label' => 'Location', 'table' => 'crm_locations', 'code' => false],
         'contact-types' => ['label' => 'Contact Type', 'table' => 'crm_contact_types', 'code' => false],

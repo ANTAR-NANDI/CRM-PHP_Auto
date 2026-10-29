@@ -32,6 +32,7 @@ use App\Http\Controllers\PerformanceReportController;
 use App\Http\Controllers\ActivitySetupController;
 use App\Http\Controllers\PromotionEventController;
 use App\Http\Controllers\EventBudgetController;
+use App\Http\Controllers\EventOperationController;
 use App\Http\Controllers\BulkSmsController;
 use App\Http\Controllers\PreEventPlanController;
 use App\Http\Controllers\AgendaController;
@@ -84,7 +85,7 @@ Route::middleware(['auth', 'permission:pos.access'])->group(function () {
     Route::get('/sales/{sale}', [SaleController::class, 'show'])->whereNumber('sale')->name('sales.show');
 });
 
-Route::middleware(['auth', 'permission:products.view'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'permission:products.view|products.manage|system-settings.manage'])->prefix('admin')->group(function () {
     Route::get('products', [ProductController::class, 'index'])->name('products.index');
 });
 
@@ -150,6 +151,7 @@ Route::middleware(['auth', 'permission:activity-setup.manage'])->prefix('crm/act
     Route::delete('subject-types/{activitySubjectType}', [ActivitySetupController::class, 'destroySubjectType'])->name('activity-setup.subject-types.destroy');
 });
 Route::middleware(['auth', 'permission:events.manage'])->prefix('promotion')->group(function () { Route::get('events',[PromotionEventController::class,'index'])->name('events.index'); Route::get('events/create',[PromotionEventController::class,'create'])->name('events.create'); Route::post('events',[PromotionEventController::class,'store'])->name('events.store'); });
+Route::middleware(['auth', 'permission:events.manage'])->prefix('promotion')->group(function () { Route::get('event-activities', fn (EventOperationController $controller) => $controller->index('activity'))->name('event-activities.index'); Route::get('event-activities/create', fn (EventOperationController $controller) => $controller->create('activity'))->name('event-activities.create'); Route::post('event-activities', fn (Illuminate\Http\Request $request, EventOperationController $controller) => $controller->store($request, 'activity'))->name('event-activities.store'); Route::get('event-expenses', fn (EventOperationController $controller) => $controller->index('expense'))->name('event-expenses.index'); Route::get('event-expenses/create', fn (EventOperationController $controller) => $controller->create('expense'))->name('event-expenses.create'); Route::post('event-expenses', fn (Illuminate\Http\Request $request, EventOperationController $controller) => $controller->store($request, 'expense'))->name('event-expenses.store'); });
 Route::middleware(['auth', 'permission:budgets.manage'])->prefix('promotion')->group(function () { Route::get('budgets',[EventBudgetController::class,'index'])->name('budgets.index'); Route::get('budgets/create',[EventBudgetController::class,'create'])->name('budgets.create'); Route::post('budgets',[EventBudgetController::class,'store'])->name('budgets.store'); Route::get('events/{event}/budget-info',[EventBudgetController::class,'event'])->name('budgets.event'); });
 Route::middleware(['auth', 'permission:bulk-sms.manage'])->prefix('promotion')->group(function(){Route::get('bulk-sms',[BulkSmsController::class,'create'])->name('bulk-sms.create');Route::post('bulk-sms',[BulkSmsController::class,'store'])->name('bulk-sms.store');Route::get('sms-send-list',[BulkSmsController::class,'index'])->name('bulk-sms.index');});
 Route::middleware(['auth', 'permission:pre-event-plans.manage'])->prefix('planning')->group(function(){Route::get('pre-event-plans',[PreEventPlanController::class,'index'])->name('pre-event-plans.index');Route::get('pre-event-plans/create',[PreEventPlanController::class,'create'])->name('pre-event-plans.create');Route::post('pre-event-plans',[PreEventPlanController::class,'store'])->name('pre-event-plans.store');});
@@ -208,7 +210,7 @@ Route::middleware(['auth', 'permission:brands.manage'])->prefix('admin')->group(
 Route::middleware(['auth', 'permission:generic-names.manage'])->prefix('admin')->group(function () {
     Route::resource('generic-names', GenericNameController::class)->except(['show']);
 });
-Route::middleware(['auth', 'permission:products.manage'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'permission:products.manage|system-settings.manage'])->prefix('admin')->group(function () {
     Route::resource('item-categories', ItemCategoryController::class)->only(['index', 'create', 'store']);
     Route::resource('products', ProductController::class)->except(['index', 'show']);
 });
@@ -252,7 +254,7 @@ Route::middleware(['auth', 'permission:config.roles.manage'])->prefix('admin')->
     Route::resource('permissions', PermissionController::class)->except(['show', 'create', 'edit']);
 });
 
-Route::middleware(['auth', 'permission:config.stores.manage'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'permission:config.stores.manage|system-settings.manage'])->prefix('admin')->group(function () {
     Route::resource('stores', StoreController::class)->except(['show']);
 });
 
