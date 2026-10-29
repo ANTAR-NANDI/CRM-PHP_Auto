@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Services\AccountingPostingService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -23,6 +24,7 @@ class CustomerVehicleSaleController extends Controller
             'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(),
             'products' => Product::query()->select(['id', 'name', 'unit_price as selling_price'])->orderBy('name')->get(),
             'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'productManagers' => User::query()->where('is_active', true)->where(fn ($query) => $query->whereRaw('LOWER(COALESCE(designation, \'\')) LIKE ?', ['%product manager%'])->orWhere('role', 'product-manager')->orWhereHas('roles', fn ($roles) => $roles->where('name', 'product-manager')))->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -30,7 +32,7 @@ class CustomerVehicleSaleController extends Controller
     {
         $data = $request->validate([
             'sale_no' => ['required', 'string', 'max:50', 'unique:customer_vehicle_sales,sale_no'], 'sale_date' => ['required', 'date'],
-            'customer_id' => ['nullable', 'exists:customers,id'], 'dealer' => ['nullable', 'string', 'max:255'], 'mode_of_sale' => ['required', 'in:cash,credit,booking'], 'delivery_point' => ['nullable', 'string', 'max:255'], 'tentative_delivery_date' => ['nullable', 'date'], 'sales_person_id' => ['nullable', 'exists:users,id'], 'remarks' => ['nullable', 'string', 'max:5000'],
+            'customer_id' => ['nullable', 'exists:customers,id'], 'dealer' => ['nullable', 'string', 'max:255'], 'mode_of_sale' => ['required', 'in:cash,credit,intercom'], 'delivery_point' => ['nullable', 'string', 'max:255'], 'tentative_delivery_date' => ['nullable', 'date'], 'sales_person_id' => ['nullable', 'exists:users,id'], 'product_manager_id' => ['nullable', 'exists:users,id'], 'remarks' => ['nullable', 'string', 'max:5000'],
             'segment_id' => ['nullable', 'exists:crm_segments,id'], 'product_id' => ['nullable', 'exists:products,id'], 'color' => ['nullable', 'string', 'max:100'], 'quantity' => ['required', 'integer', 'min:1'], 'body_type' => ['nullable', 'string', 'max:100'], 'tyre_size' => ['nullable', 'string', 'max:100'], 'seat_capacity' => ['nullable', 'integer', 'min:1'], 'registration_type' => ['required', 'in:individual,company'], 'registration_place' => ['nullable', 'string', 'max:100'], 'vehicle_tracker' => ['nullable', 'boolean'],
             'offered_price' => ['nullable', 'numeric', 'min:0'], 'unit_price' => ['required', 'numeric', 'min:0'], 'discount_amount' => ['nullable', 'numeric', 'min:0'], 'paid_amount' => ['nullable', 'numeric', 'min:0'], 'payment_date' => ['nullable', 'date'], 'payment_mode' => ['required', 'in:cash,bank,cheque,mobile_banking'],
         ]);
@@ -48,6 +50,20 @@ class CustomerVehicleSaleController extends Controller
             $sale->update(['account_voucher_id' => $voucher->id]);
         });
         return redirect()->route('customer-sales.index')->with('success', 'Customer sale saved successfully.');
+    }
+
+    public function storeCustomer(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50', 'unique:customers,phone'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'address' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $data['phone'] = $data['phone'] ?: null;
+        $customer = Customer::create($data + ['customer_type' => 'retail', 'is_active' => true]);
+
+        return response()->json(['id' => $customer->id, 'text' => trim($customer->name.($customer->phone ? ' — '.$customer->phone : ''))], 201);
     }
 
     public function index(Request $request): View

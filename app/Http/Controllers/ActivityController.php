@@ -10,10 +10,12 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerVehicleSale;
 use App\Models\Lead;
+use App\Models\LeadStatusHistory;
 use App\Models\Organization;
 use App\Models\Todo;
 use App\Models\TodoType;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -69,6 +71,8 @@ class ActivityController extends Controller
             'defaultSubjectId' => $defaultSubjectId,
             'defaultActivityWith' => $defaultActivityWith,
             'todoTypes' => TodoType::query()->where('is_active', true)->orderBy('name')->get(),
+            'leadStatuses' => DB::table('crm_lead_statuses')->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'pipelineStages' => DB::table('crm_pipelines')->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -80,6 +84,8 @@ class ActivityController extends Controller
             'subject_type' => ['required', Rule::exists('activity_subject_types', 'key')->where('is_active', true)],
             'subject_id' => ['nullable', 'integer'],
             'activity_with' => ['nullable', 'string', 'max:255'],
+            'lead_status_id' => ['nullable', 'integer', 'exists:crm_lead_statuses,id'],
+            'pipeline_id' => ['nullable', 'integer', 'exists:crm_pipelines,id'],
             'from_at' => ['required', 'date'],
             'to_at' => ['nullable', 'date', 'after_or_equal:from_at'],
             'remarks' => ['nullable', 'string', 'max:5000'],
@@ -110,8 +116,34 @@ class ActivityController extends Controller
         unset($data['attachment']);
 
         DB::transaction(function () use ($data, $request) {
-            $activityData = collect($data)->except(['todo_type_id', 'todo_due_at', 'todo_remind_before_minutes', 'todo_note'])->all();
+            $activityData = collect($data)->except(['todo_type_id', 'todo_due_at', 'todo_remind_before_minutes', 'todo_note', 'lead_status_id', 'pipeline_id'])->all();
             Activity::create($activityData);
+
+            if ($data['subject_type'] === 'lead' && ! empty($data['subject_id'])) {
+                $lead = Lead::find($data['subject_id']);
+                $leadUpdate = array_filter([
+                    'lead_status_id' => $data['lead_status_id'] ?? null,
+                    'pipeline_id' => $data['pipeline_id'] ?? null,
+                ], fn ($value) => $value !== null);
+
+                if ($lead && $leadUpdate) {
+                    $previousStatusId = (int) $lead->lead_status_id;
+                    $lead->update($leadUpdate);
+
+                    if (isset($leadUpdate['lead_status_id']) && $previousStatusId !== (int) $leadUpdate['lead_status_id']) {
+                        LeadStatusHistory::create([
+                            'lead_id' => $lead->id,
+                            'lead_status_id' => $leadUpdate['lead_status_id'],
+                            'previous_lead_status_id' => $previousStatusId,
+                            'changed_by' => $request->user()->id,
+                            'status_date' => Carbon::parse($data['from_at'])->toDateString(),
+                            'status_time' => Carbon::parse($data['from_at'])->format('H:i:s'),
+                            'note' => 'Status updated from activity.',
+                            'lead_remarks' => $data['remarks'] ?? null,
+                        ]);
+                    }
+                }
+            }
 
             if ($data['keep_todo']) {
                 Todo::create([
@@ -152,7 +184,7 @@ class ActivityController extends Controller
         $storeId = $request->user()->store_id;
 
         return response()->json(match ($type) {
-            'lead' => Lead::query()->when($limited, fn ($builder) => $builder->where('owner_id', $request->user()->id))->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('phone', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'phone'])->map(fn (Lead $lead) => ['id' => $lead->id, 'label' => trim($lead->name.' · '.$lead->phone)]),
+            'lead' => Lead::query()->when($limited, fn ($builder) => $builder->where('owner_id', $request->user()->id))->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('phone', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'phone', 'lead_status_id', 'pipeline_id'])->map(fn (Lead $lead) => ['id' => $lead->id, 'label' => trim($lead->name.' · '.$lead->phone), 'lead_status_id' => $lead->lead_status_id, 'pipeline_id' => $lead->pipeline_id]),
             'contact' => Contact::query()->when($limited, fn ($builder) => $storeId ? $builder->where('store_id', $storeId) : $builder->whereRaw('1 = 0'))->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('mobile_1', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'mobile_1'])->map(fn (Contact $contact) => ['id' => $contact->id, 'label' => trim($contact->name.' · '.$contact->mobile_1)]),
             'organization' => Organization::query()->where('is_active', true)->when($query, fn ($builder) => $builder->where('name', 'like', "%{$query}%"))->orderBy('name')->limit(50)->get(['id', 'name'])->map(fn (Organization $organization) => ['id' => $organization->id, 'label' => $organization->name]),
             default => Customer::query()->where('is_active', true)->when($limited, fn ($builder) => $builder->whereIn('id', CustomerVehicleSale::query()->where('sales_person_id', $request->user()->id)->whereNotNull('customer_id')->select('customer_id')))->when($query, fn ($builder) => $builder->where(fn ($match) => $match->where('name', 'like', "%{$query}%")->orWhere('phone', 'like', "%{$query}%")))->orderBy('name')->limit(50)->get(['id', 'name', 'phone'])->map(fn (Customer $customer) => ['id' => $customer->id, 'label' => trim($customer->name.' · '.$customer->phone)]),

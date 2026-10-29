@@ -16,7 +16,7 @@ class SystemSettingsController extends Controller
         'lead-sources' => ['label' => 'Lead Source', 'table' => 'crm_sources', 'code' => false],
         'pipeline-stages' => ['label' => 'Lead Pipeline Stage', 'table' => 'crm_pipelines', 'code' => true],
         'segments' => ['label' => 'Segment', 'table' => 'crm_segments', 'code' => false],
-        'lead-statuses' => ['label' => 'Lead Status', 'table' => 'crm_lead_statuses', 'code' => false],
+        'lead-statuses' => ['label' => 'Lead Status', 'table' => 'crm_lead_statuses', 'code' => false, 'points' => true],
         'vehicle-colors' => ['label' => 'Vehicle Color', 'table' => 'crm_colors', 'code' => false],
         'event-types' => ['label' => 'Event Type', 'table' => 'event_types', 'code' => false],
         'todo-types' => ['label' => 'Todo Type', 'table' => 'todo_types', 'code' => false],
@@ -92,6 +92,9 @@ class SystemSettingsController extends Controller
         ];
         if ($meta['code']) {
             $rules['code'] = ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9-]+$/', Rule::unique($meta['table'], 'code')->ignore($id)];
+        }
+        if ($meta['points'] ?? false) {
+            $rules['point'] = ['required', 'integer', 'min:0', 'max:100'];
         }
         $data = $request->validate($rules);
         $data['is_active'] = $request->boolean('is_active');

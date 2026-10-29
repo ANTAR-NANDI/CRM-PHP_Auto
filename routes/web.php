@@ -109,11 +109,15 @@ Route::middleware(['auth', 'permission:activities.manage'])->prefix('crm')->grou
 Route::middleware(['auth', 'permission:leads.manage'])->prefix('crm')->group(function () {
     Route::get('leads', [LeadController::class, 'index'])->name('leads.index');
     Route::get('leads/create', [LeadController::class, 'create'])->name('leads.create');
+    Route::get('leads/check-contact', [LeadController::class, 'checkContact'])->name('leads.check-contact');
     Route::post('leads', [LeadController::class, 'store'])->name('leads.store');
+    Route::post('leads/organizations', [LeadController::class, 'storeOrganization'])->name('leads.organizations.store');
     Route::get('leads/{lead}/edit', [LeadController::class, 'edit'])->name('leads.edit');
     Route::get('leads/{lead}/history', [LeadController::class, 'history'])->name('leads.history');
+    Route::get('leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
     Route::get('lead-status-view', [LeadStatusHistoryController::class, 'index'])->name('leads.status-history.index');
     Route::put('leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
+    Route::delete('leads/{lead}', [LeadController::class, 'destroy'])->name('leads.destroy');
 });
 Route::middleware(['auth', 'permission:todos.manage'])->prefix('crm')->group(function () {
     Route::get('todos', [TodoController::class, 'index'])->name('todos.index');
@@ -155,7 +159,7 @@ Route::middleware(['auth', 'permission:sales-targets.manage'])->prefix('sales')-
 Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('requisitions',[RequisitionController::class,'index'])->name('requisitions.index');Route::get('requisitions/create',[RequisitionController::class,'create'])->name('requisitions.create');Route::post('requisitions',[RequisitionController::class,'store'])->name('requisitions.store');});
 Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('issues',[InventoryIssueController::class,'index'])->name('inventory-issues.index');Route::get('issues/create',[InventoryIssueController::class,'create'])->name('inventory-issues.create');Route::post('issues',[InventoryIssueController::class,'store'])->name('inventory-issues.store');});
 Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('issue-returns',[IssueReturnController::class,'index'])->name('issue-returns.index');Route::get('issue-returns/create',[IssueReturnController::class,'create'])->name('issue-returns.create');Route::post('issue-returns',[IssueReturnController::class,'store'])->name('issue-returns.store');});
-Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('customer-sales',[CustomerVehicleSaleController::class,'index'])->name('customer-sales.index');Route::get('customer-sales/create',[CustomerVehicleSaleController::class,'create'])->name('customer-sales.create');Route::post('customer-sales',[CustomerVehicleSaleController::class,'store'])->name('customer-sales.store');Route::get('customer-sales/{customerSale}/export',[CustomerVehicleSaleController::class,'export'])->name('customer-sales.export');Route::post('customer-sales/{customerSale}/image',[CustomerVehicleSaleController::class,'uploadImage'])->name('customer-sales.image');});
+Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){Route::get('customer-sales',[CustomerVehicleSaleController::class,'index'])->name('customer-sales.index');Route::get('customer-sales/create',[CustomerVehicleSaleController::class,'create'])->name('customer-sales.create');Route::post('customer-sales/customers',[CustomerVehicleSaleController::class,'storeCustomer'])->name('customer-sales.customers.store');Route::post('customer-sales',[CustomerVehicleSaleController::class,'store'])->name('customer-sales.store');Route::get('customer-sales/{customerSale}/export',[CustomerVehicleSaleController::class,'export'])->name('customer-sales.export');Route::post('customer-sales/{customerSale}/image',[CustomerVehicleSaleController::class,'uploadImage'])->name('customer-sales.image');});
 Route::middleware(['auth', 'permission:sales.manage'])->prefix('sales')->group(function(){
     Route::resource('dealers', DealerController::class)->only(['index', 'create', 'store']);
     Route::get('dealer-outstanding', [DealerDeliveryController::class, 'outstanding'])->name('dealer-outstanding.index');

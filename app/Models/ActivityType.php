@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ActivityType extends Model
 {
-    protected $fillable = ['name', 'is_active'];
+    protected $fillable = ['name', 'point', 'is_active'];
 
     protected function casts(): array { return ['is_active' => 'boolean']; }
 

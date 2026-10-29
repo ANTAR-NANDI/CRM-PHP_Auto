@@ -19,6 +19,9 @@
             @else
                 <span class="hidden md:block"></span>
             @endif
+            @if($setting['points'] ?? false)
+                <input name="point" type="number" min="0" max="100" value="{{ old('point', 1) }}" required placeholder="Points" class="w-full rounded-md border-slate-300 py-2.5 text-sm">
+            @endif
             <input type="hidden" name="is_active" value="1">
             <div class="flex gap-2"><button class="rounded-md bg-[#1f7d88] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#176973]">Save</button><button type="button" onclick="document.getElementById('add-setting-form').classList.add('hidden'); document.getElementById('show-add-setting').classList.remove('hidden');" class="rounded-md border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white">Cancel</button></div>
         </form>
@@ -27,7 +30,7 @@
             @forelse($records as $record)
                 <div x-data="{ editing: false }" class="p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div><p class="font-semibold text-slate-800">{{ $record->name }}</p>@if($setting['code'])<p class="mt-1 text-xs text-slate-400">{{ $record->code ?: 'No code' }}</p>@endif</div>
+                        <div><p class="font-semibold text-slate-800">{{ $record->name }}</p>@if($setting['code'])<p class="mt-1 text-xs text-slate-400">{{ $record->code ?: 'No code' }}</p>@endif@if($setting['points'] ?? false)<p class="mt-1 text-xs font-semibold text-teal-700">{{ $record->point }} points</p>@endif</div>
                         <div class="flex items-center gap-3">
                             <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $record->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ $record->is_active ? 'Active' : 'Inactive' }}</span>
                             <button type="button" @click="editing = !editing" class="text-sm font-bold text-indigo-700 hover:text-indigo-900" x-text="editing ? 'Cancel' : 'Edit'"></button>
@@ -38,6 +41,7 @@
                         @csrf @method('PUT')
                         <input name="name" value="{{ $record->name }}" required class="w-full rounded border-slate-300 py-2 text-sm">
                         @if($setting['code'])<input name="code" value="{{ $record->code }}" class="w-full rounded border-slate-300 py-2 text-sm">@else<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_active" value="1" @checked($record->is_active)> Active</label>@endif
+                        @if($setting['points'] ?? false)<input name="point" type="number" min="0" max="100" value="{{ $record->point }}" required class="w-full rounded border-slate-300 py-2 text-sm">@endif
                         @if($setting['code'])<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_active" value="1" @checked($record->is_active)> Active</label>@endif
                         <button class="rounded bg-slate-700 px-3 py-2 text-sm font-semibold text-white">Save changes</button>
                     </form>

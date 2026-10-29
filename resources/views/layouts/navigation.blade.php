@@ -47,16 +47,15 @@
         </div>
         @endcan
 
-        @if(auth()->user()->canAny(['customers.manage','contacts.manage','organizations.manage','leads.manage','activities.manage','todos.manage','performance-reports.view']))
-        <div x-data="{ open: {{ request()->is('crm/*') || request()->is('admin/customers*') ? 'true' : 'false' }} }">
+        @if(auth()->user()->canAny(['contacts.manage','organizations.manage','leads.manage','activities.manage','todos.manage','performance-reports.view']))
+        <div x-data="{ open: {{ request()->is('crm/*') ? 'true' : 'false' }} }">
             <button type="button" @click="open = !open" class="flex w-full items-center justify-between rounded-md px-3 py-2.5 font-semibold text-indigo-100 hover:bg-white/10"><span>Customer Relationship</span><span :class="open ? 'rotate-90' : ''">›</span></button>
             <div x-cloak x-show="open" class="space-y-0.5 pl-3">
                 @can('organizations.manage')<a href="{{ route('organizations.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Organization</a>@endcan
                 @can('contacts.manage')<a href="{{ route('contacts.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Contact Add / Contact</a>@endcan
-                @can('leads.manage')<a href="{{ route('leads.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Lead Add / Leads</a><a href="{{ route('leads.status-history.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Lead Status View</a>@endcan
-                @can('activities.manage')<a href="{{ route('activities.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Activity Add</a>@endcan
+                @can('leads.manage')<a href="{{ route('leads.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Leads</a><a href="{{ route('leads.status-history.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Lead Status View</a>@endcan
+                @can('activities.manage')<a href="{{ route('activities.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Activity</a>@endcan
                 @can('todos.manage')<a href="{{ route('todos.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">To Do Add</a><a href="{{ route('todos.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">To Do List</a>@endcan
-                @can('customers.manage')<a href="{{ route('customers.create') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Customer Add</a><a href="{{ route('customers.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Customer List</a>@endcan
                 @can('performance-reports.view')<a href="{{ route('performance.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Performance Report</a>@endcan
             </div>
         </div>

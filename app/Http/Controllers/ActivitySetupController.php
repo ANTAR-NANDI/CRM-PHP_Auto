@@ -25,14 +25,14 @@ class ActivitySetupController extends Controller
 
     public function storeType(Request $request): RedirectResponse
     {
-        ActivityType::create($request->validate(['name' => ['required', 'string', 'max:100', 'unique:activity_types,name']]) + ['is_active' => true]);
+        ActivityType::create($request->validate(['name' => ['required', 'string', 'max:100', 'unique:activity_types,name'], 'point' => ['required', 'integer', 'min:0', 'max:100']]) + ['is_active' => true]);
         return back()->with('success', 'Activity type added.');
     }
 
     public function updateType(Request $request, ActivityType $activityType): RedirectResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:100', Rule::unique('activity_types', 'name')->ignore($activityType)], 'is_active' => ['nullable', 'boolean']]);
-        $activityType->update(['name' => $data['name'], 'is_active' => $request->boolean('is_active')]);
+        $data = $request->validate(['name' => ['required', 'string', 'max:100', Rule::unique('activity_types', 'name')->ignore($activityType)], 'point' => ['required', 'integer', 'min:0', 'max:100'], 'is_active' => ['nullable', 'boolean']]);
+        $activityType->update(['name' => $data['name'], 'point' => $data['point'], 'is_active' => $request->boolean('is_active')]);
         return back()->with('success', 'Activity type updated.');
     }
 

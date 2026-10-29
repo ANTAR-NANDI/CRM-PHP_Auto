@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\SalesTarget;
-use App\Models\Supplier;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,13 +14,13 @@ class SalesTargetController extends Controller
 {
     public function create(): View
     {
-        return view('sales-targets.create', ['segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(), 'suppliers' => Supplier::orderBy('name')->get(['id', 'name']), 'products' => Product::query()->select(['id', 'name', 'unit_price as selling_price'])->orderBy('name')->get()]);
+        return view('sales-targets.create', ['segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(), 'salesExecutives' => User::query()->where('is_active', true)->where(fn ($query) => $query->whereRaw('LOWER(COALESCE(designation, \'\')) LIKE ?', ['%sales executive%'])->orWhere('role', 'salesperson')->orWhereHas('roles', fn ($roles) => $roles->where('name', 'sales-executive')))->orderBy('name')->get(['id', 'name']), 'products' => Product::query()->select(['id', 'name', 'unit_price as selling_price'])->orderBy('name')->get()]);
     }
 
     public function index(Request $request): View
     {
         $filters = $request->validate(['segment' => ['nullable', 'integer'], 'month' => ['nullable', 'integer', 'between:1,12'], 'year' => ['nullable', 'integer', 'between:2020,2100']]);
-        $targets = SalesTarget::query()->leftJoin('crm_segments as segment', 'sales_targets.segment_id', '=', 'segment.id')->select('sales_targets.*', 'segment.name as segment_name')->when($filters['segment'] ?? null, fn ($q, $x) => $q->where('segment_id', $x))->when($filters['month'] ?? null, fn ($q, $x) => $q->where('target_month', $x))->when($filters['year'] ?? null, fn ($q, $x) => $q->where('target_year', $x))->latest()->get();
+        $targets = SalesTarget::query()->leftJoin('crm_segments as segment', 'sales_targets.segment_id', '=', 'segment.id')->leftJoin('users as executive', 'sales_targets.sales_executive_id', '=', 'executive.id')->select('sales_targets.*', 'segment.name as segment_name', 'executive.name as sales_executive_name')->when($filters['segment'] ?? null, fn ($q, $x) => $q->where('segment_id', $x))->when($filters['month'] ?? null, fn ($q, $x) => $q->where('target_month', $x))->when($filters['year'] ?? null, fn ($q, $x) => $q->where('target_year', $x))->latest()->get();
 
         return view('sales-targets.index', ['targets' => $targets, 'filters' => $filters, 'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get()]);
     }
@@ -51,7 +51,7 @@ class SalesTargetController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate(['segment_id' => ['nullable', 'exists:crm_segments,id'], 'target_month' => ['required', 'integer', 'between:1,12'], 'target_year' => ['required', 'integer', 'between:2020,2100'], 'remarks' => ['nullable', 'string', 'max:5000'], 'items' => ['required', 'array', 'min:1'], 'items.*.supplier_id' => ['nullable', 'exists:suppliers,id'], 'items.*.product_id' => ['nullable', 'exists:products,id'], 'items.*.target_quantity' => ['required', 'numeric', 'min:0.01'], 'items.*.price' => ['required', 'numeric', 'min:0']]);
+        $data = $request->validate(['sales_executive_id' => ['required', 'exists:users,id'], 'segment_id' => ['required', 'exists:crm_segments,id'], 'target_month' => ['required', 'integer', 'between:1,12'], 'target_year' => ['required', 'integer', 'between:2020,2100'], 'remarks' => ['nullable', 'string', 'max:5000'], 'items' => ['required', 'array', 'min:1'], 'items.*.product_id' => ['required', 'exists:products,id'], 'items.*.target_quantity' => ['required', 'numeric', 'min:0.01'], 'items.*.price' => ['required', 'numeric', 'min:0']]);
         DB::transaction(function () use ($data): void {
             $items = collect($data['items'])->map(fn ($x) => $x + ['target_value' => $x['target_quantity'] * $x['price']]);
             $target = SalesTarget::create(collect($data)->except('items')->all() + ['total_quantity' => $items->sum('target_quantity'), 'total_value' => $items->sum('target_value')]);

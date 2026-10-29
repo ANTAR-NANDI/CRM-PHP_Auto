@@ -9,6 +9,8 @@ use Illuminate\View\View;
 
 class PerformanceReportController extends Controller
 {
+    private const SALE_POINT = 20;
+
     public function index(Request $request): View
     {
         $filters = $request->validate([
@@ -26,8 +28,8 @@ class PerformanceReportController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $activityHeaders = DB::table('activity_types')->where('is_active', true)->orderBy('name')->pluck('name', 'id');
-        $leadHeaders = DB::table('crm_lead_statuses')->where('is_active', true)->orderBy('name')->pluck('name', 'id');
+        $activityHeaders = DB::table('activity_types')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'point']);
+        $leadHeaders = DB::table('crm_lead_statuses')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'point']);
         $salesHeaders = DB::table('item_categories')->orderBy('name')->pluck('name')->values();
 
         $activityCounts = DB::table('activities')
@@ -56,13 +58,17 @@ class PerformanceReportController extends Controller
             ->get()->groupBy('sales_person_id')
             ->map(fn ($records) => $records->pluck('total', 'category_name'));
 
-        $rows = $users->map(fn (User $user) => [
-            'name' => $user->name,
-            'activities' => $activityCounts->get($user->id, collect()),
-            'leads' => $leadCounts->get($user->id, collect()),
-            'sales' => $salesCounts->get($user->id, collect()),
-        ]);
+        $rows = $users->map(function (User $user) use ($activityCounts, $leadCounts, $salesCounts, $activityHeaders, $leadHeaders) {
+            $activities = $activityCounts->get($user->id, collect());
+            $leads = $leadCounts->get($user->id, collect());
+            $sales = $salesCounts->get($user->id, collect());
+            $activityScore = $activityHeaders->sum(fn ($header) => $activities->get($header->id, 0) * $header->point);
+            $leadScore = $leadHeaders->sum(fn ($header) => $leads->get($header->id, 0) * $header->point);
+            $salesScore = $sales->sum() * self::SALE_POINT;
 
-        return view('performance.index', compact('filters', 'users', 'activityHeaders', 'leadHeaders', 'salesHeaders', 'rows', 'canViewAll'));
+            return ['name' => $user->name, 'activities' => $activities, 'leads' => $leads, 'sales' => $sales, 'total_score' => $activityScore + $leadScore + $salesScore];
+        });
+
+        return view('performance.index', compact('filters', 'users', 'activityHeaders', 'leadHeaders', 'salesHeaders', 'rows', 'canViewAll') + ['salePoint' => self::SALE_POINT]);
     }
 }

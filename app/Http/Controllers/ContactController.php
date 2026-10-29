@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ContactController extends Controller
@@ -27,13 +29,12 @@ class ContactController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'], 'mobile_1' => ['nullable', 'string', 'max:50'], 'mobile_2' => ['nullable', 'string', 'max:50'], 'email' => ['nullable', 'email', 'max:255'], 'organization_id' => ['nullable', 'exists:crm_organizations,id'], 'job_title' => ['nullable', 'string', 'max:255'], 'id_type' => ['nullable', 'string', 'max:50'], 'id_number' => ['nullable', 'string', 'max:100'], 'gender' => ['nullable', 'in:male,female,other'], 'religion' => ['nullable', 'string', 'max:100'], 'birth_date' => ['nullable', 'date'], 'contact_type_id' => ['required', 'exists:crm_contact_types,id'], 'customer_identifier' => ['nullable', 'string', 'max:100'], 'product_id' => ['nullable', 'exists:products,id'], 'remarks' => ['nullable', 'string', 'max:5000'], 'present_address' => ['nullable', 'string', 'max:2000'], 'present_location_id' => ['nullable', 'exists:crm_locations,id'], 'permanent_address' => ['nullable', 'string', 'max:2000'], 'permanent_location_id' => ['nullable', 'exists:crm_locations,id'], 'father_name' => ['nullable', 'string', 'max:255'], 'mother_name' => ['nullable', 'string', 'max:255'], 'marital_status' => ['nullable', 'in:single,married,divorced,widowed'], 'spouse_name' => ['nullable', 'string', 'max:255'], 'marriage_date' => ['nullable', 'date'],
-        ]);
+        $data = $this->validated($request);
         $data['contact_code'] = 'CT-'.now()->format('ymd').'-'.str_pad((string) (Contact::count() + 1), 5, '0', STR_PAD_LEFT);
         $data['created_by'] = $request->user()->id;
         $data['store_id'] = $request->user()->store_id;
-        Contact::create($data);
+        $contact = Contact::create($data);
+        $this->syncCustomer($contact);
 
         return redirect()->route('contacts.index')->with('success', 'Contact saved successfully.');
     }
@@ -47,6 +48,7 @@ class ContactController extends Controller
     {
         $data = $this->validated($request);
         $contact->update($data);
+        $this->syncCustomer($contact->fresh());
 
         return redirect()->route('contacts.index')->with('success', 'Contact updated successfully.');
     }
@@ -61,12 +63,33 @@ class ContactController extends Controller
     private function validated(Request $request): array
     {
         return $request->validate([
-            'name' => ['required', 'string', 'max:255'], 'mobile_1' => ['nullable', 'string', 'max:50'], 'mobile_2' => ['nullable', 'string', 'max:50'], 'email' => ['nullable', 'email', 'max:255'], 'organization_id' => ['nullable', 'exists:crm_organizations,id'], 'job_title' => ['nullable', 'string', 'max:255'], 'id_type' => ['nullable', 'string', 'max:50'], 'id_number' => ['nullable', 'string', 'max:100'], 'gender' => ['nullable', 'in:male,female,other'], 'religion' => ['nullable', 'string', 'max:100'], 'birth_date' => ['nullable', 'date'], 'contact_type_id' => ['required', 'exists:crm_contact_types,id'], 'customer_identifier' => ['nullable', 'string', 'max:100'], 'product_id' => ['nullable', 'exists:products,id'], 'remarks' => ['nullable', 'string', 'max:5000'], 'present_address' => ['nullable', 'string', 'max:2000'], 'present_location_id' => ['nullable', 'exists:crm_locations,id'], 'permanent_address' => ['nullable', 'string', 'max:2000'], 'permanent_location_id' => ['nullable', 'exists:crm_locations,id'], 'father_name' => ['nullable', 'string', 'max:255'], 'mother_name' => ['nullable', 'string', 'max:255'], 'marital_status' => ['nullable', 'in:single,married,divorced,widowed'], 'spouse_name' => ['nullable', 'string', 'max:255'], 'marriage_date' => ['nullable', 'date'],
+            'name' => ['required', 'string', 'max:255'], 'mobile_1' => ['nullable', 'string', 'max:50'], 'mobile_2' => ['nullable', 'string', 'max:50'], 'email' => ['nullable', 'email', 'max:255'], 'organization_id' => ['nullable', 'exists:crm_organizations,id'], 'job_title' => ['nullable', 'string', 'max:255'], 'id_type' => ['nullable', 'string', 'max:50'], 'id_number' => ['nullable', 'string', 'max:100'], 'gender' => ['nullable', 'in:male,female,other'], 'religion' => ['nullable', 'string', 'max:100'], 'birth_date' => ['nullable', 'date'], 'contact_type_id' => ['required', Rule::exists('crm_contact_types', 'id')->where(fn ($query) => $query->whereIn('name', ['Lead', 'Customer'])->where('is_active', true))], 'customer_identifier' => ['nullable', 'string', 'max:100'], 'product_id' => ['nullable', 'exists:products,id'], 'remarks' => ['nullable', 'string', 'max:5000'], 'present_address' => ['nullable', 'string', 'max:2000'], 'present_location_id' => ['nullable', 'exists:crm_locations,id'], 'permanent_address' => ['nullable', 'string', 'max:2000'], 'permanent_location_id' => ['nullable', 'exists:crm_locations,id'], 'father_name' => ['nullable', 'string', 'max:255'], 'mother_name' => ['nullable', 'string', 'max:255'], 'marital_status' => ['nullable', 'in:single,married,divorced,widowed'], 'spouse_name' => ['nullable', 'string', 'max:255'], 'marriage_date' => ['nullable', 'date'],
         ]);
     }
 
     private function lookups(): array
     {
-        return ['types' => DB::table('crm_contact_types')->where('is_active', true)->orderBy('name')->get(), 'locations' => DB::table('crm_locations')->where('is_active', true)->orderBy('name')->get(), 'organizations' => Organization::where('is_active', true)->orderBy('name')->get(['id', 'name']), 'products' => Product::where('is_active', true)->orderBy('name')->get(['id', 'name'])];
+        return ['types' => DB::table('crm_contact_types')->where('is_active', true)->whereIn('name', ['Lead', 'Customer'])->orderByRaw("CASE name WHEN 'Lead' THEN 1 WHEN 'Customer' THEN 2 END")->get(), 'locations' => DB::table('crm_locations')->where('is_active', true)->orderBy('name')->get(), 'organizations' => Organization::where('is_active', true)->orderBy('name')->get(['id', 'name']), 'products' => Product::where('is_active', true)->orderBy('name')->get(['id', 'name'])];
+    }
+
+    private function syncCustomer(Contact $contact): void
+    {
+        $isCustomer = DB::table('crm_contact_types')->where('id', $contact->contact_type_id)->value('name') === 'Customer';
+        if (! $isCustomer) return;
+
+        $customer = Customer::where('contact_id', $contact->id)->first();
+        if (! $customer && $contact->mobile_1) $customer = Customer::where('phone', $contact->mobile_1)->first();
+
+        $data = [
+            'contact_id' => $contact->id,
+            'name' => $contact->name,
+            'customer_type' => 'retail',
+            'phone' => $contact->mobile_1,
+            'email' => $contact->email,
+            'address' => $contact->present_address,
+            'is_active' => true,
+        ];
+        $customer = $customer ? tap($customer)->update($data) : Customer::create($data);
+        if ((string) $contact->customer_identifier !== (string) $customer->id) $contact->update(['customer_identifier' => $customer->id]);
     }
 }
