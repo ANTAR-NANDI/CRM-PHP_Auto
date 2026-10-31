@@ -21,14 +21,23 @@ class TodoController extends Controller
         $todos = Todo::query()->with(['type','assignee'])->when($filters['type']??null,fn($q,$id)=>$q->where('todo_type_id',$id))->when($filters['status']??null,fn($q,$status)=>$q->where('status',$status))->when($filters['from']??null,fn($q,$date)=>$q->whereDate('due_at','>=',$date))->when($filters['to']??null,fn($q,$date)=>$q->whereDate('due_at','<=',$date))->orderBy('due_at')->paginate(20)->withQueryString();
         return view('todos.index',['todos'=>$todos,'types'=>TodoType::where('is_active',true)->orderBy('name')->get(),'filters'=>$filters]);
     }
-    public function create(): View { return view('todos.create',['types'=>TodoType::where('is_active',true)->orderBy('name')->get(),'users'=>User::where('is_active',true)->orderBy('name')->get(['id','name'])]); }
+      public function create(): View { return view('todos.create', ['todo' => new Todo(), ...$this->references()]); }
     public function store(Request $request): RedirectResponse
     {
-        $data=$request->validate(['todo_type_id'=>['required','exists:todo_types,id'],'subject_type'=>['required',Rule::in(['lead','customer'])],'subject_id'=>['nullable','integer'],'task_with'=>['nullable','string','max:255'],'due_at'=>['required','date'],'priority'=>['required',Rule::in(['low','medium','high','urgent'])],'assigned_to'=>['required','exists:users,id'],'remind_before_minutes'=>['required',Rule::in([0,5,10,15,30,60,1440])],'note'=>['nullable','string','max:5000']]);
+          $data = $this->validated($request);
         $subject=$data['subject_type']==='lead'?Lead::class:Customer::class;
         if (!empty($data['subject_id'])&&!$this->canAccessSubject($request, $data['subject_type'], (int) $data['subject_id'])) return back()->withErrors(['subject_id'=>'Choose a valid '.$data['subject_type'].'.'])->withInput();
         Todo::create($data); return redirect()->route('todos.index')->with('success','To-do saved successfully.');
     }
+      public function edit(Todo $todo): View { return view('todos.edit', ['todo' => $todo, ...$this->references()]); }
+      public function update(Request $request, Todo $todo): RedirectResponse
+      {
+          $data = $this->validated($request);
+          if (!empty($data['subject_id'])&&!$this->canAccessSubject($request, $data['subject_type'], (int) $data['subject_id'])) return back()->withErrors(['subject_id'=>'Choose a valid '.$data['subject_type'].'.'])->withInput();
+          $todo->update($data);
+          return redirect()->route('todos.index')->with('success', 'To-do updated successfully.');
+      }
+      public function destroy(Todo $todo): RedirectResponse { $todo->delete(); return back()->with('success', 'To-do deleted successfully.'); }
     public function complete(Todo $todo): RedirectResponse { $todo->update(['status'=>'completed','completed_at'=>now()]); return back()->with('success','Task marked complete.'); }
     public function updateStatus(Request $request, Todo $todo): RedirectResponse
     {
@@ -49,4 +58,6 @@ class TodoController extends Controller
 
         return Lead::query()->whereKey($id)->where('owner_id', $request->user()->id)->exists();
     }
+      private function references(): array { return ['types'=>TodoType::where('is_active',true)->orderBy('name')->get(),'users'=>User::where('is_active',true)->orderBy('name')->get(['id','name'])]; }
+      private function validated(Request $request): array { return $request->validate(['todo_type_id'=>['required','exists:todo_types,id'],'subject_type'=>['required',Rule::in(['lead','customer'])],'subject_id'=>['nullable','integer'],'task_with'=>['nullable','string','max:255'],'due_at'=>['required','date'],'priority'=>['required',Rule::in(['low','medium','high','urgent'])],'assigned_to'=>['required','exists:users,id'],'remind_before_minutes'=>['required',Rule::in([0,5,10,15,30,60,1440])],'note'=>['nullable','string','max:5000']]); }
 }

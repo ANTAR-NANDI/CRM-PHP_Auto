@@ -10,7 +10,7 @@ class Store extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'code', 'phone', 'address', 'is_active'];
+      protected $fillable = ['name', 'code', 'phone', 'address', 'store_type', 'is_active'];
 
     protected function casts(): array
     {

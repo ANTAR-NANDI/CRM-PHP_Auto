@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { Schema::table('sales_returns', function (Blueprint $table) { $table->boolean('transfer_to_dealer')->default(false)->after('return_date'); $table->foreignId('location_id')->nullable()->after('transfer_to_dealer')->constrained('crm_locations')->nullOnDelete(); }); } public function down(): void { Schema::table('sales_returns', function (Blueprint $table) { $table->dropConstrainedForeignId('location_id'); $table->dropColumn('transfer_to_dealer'); }); } };

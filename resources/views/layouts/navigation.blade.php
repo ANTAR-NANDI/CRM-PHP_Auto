@@ -143,6 +143,7 @@
                 <a href="{{ route('system-settings.show', 'segments') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Segments</a>
                 <a href="{{ route('system-settings.show', 'departments') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Department</a>
                 <a href="{{ route('activity-setup.types.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Activity Type</a>
+                <a href="{{ route('activity-setup.sub-types.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Activity Sub Type</a><a href="{{ route('activity-setup.subject-types.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Activity Type For</a>
                 <a href="{{ route('system-settings.show', 'event-types') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Event / Campaign Type</a>
                 <a href="{{ route('system-settings.show', 'locations') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Location</a>
                 <a href="{{ route('stores.index') }}" class="block rounded px-3 py-2 text-indigo-200 hover:bg-white/10">Showroom</a>

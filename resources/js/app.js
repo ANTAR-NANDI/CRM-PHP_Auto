@@ -20,19 +20,6 @@ pdfMake.addVirtualFileSystem(pdfFonts);
 DataTable.Buttons.pdfMake(pdfMake);
 
 document.addEventListener('DOMContentLoaded', () => {
-    const activityTable = document.querySelector('#activities-table');
-    if (activityTable) {
-        new DataTable(activityTable, {
-            pageLength: 25,
-            order: [[1, 'desc']],
-            layout: {
-                topStart: { buttons: [{ extend: 'pdfHtml5', text: 'Export PDF', title: 'CRM Activity Report', exportOptions: { columns: ':not(:last-child)' } }] },
-                topEnd: 'search',
-            },
-            language: { search: 'Search activities:' },
-        });
-    }
-
     const budgetTable = document.querySelector('#budgets-table');
     if (budgetTable) {
         new DataTable(budgetTable, {

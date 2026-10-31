@@ -76,6 +76,7 @@ class ProductController extends Controller
     {
         return [
             'categories' => ItemCategory::orderBy('name')->get(),
+            'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'stores' => Store::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'positions' => StorePosition::where('is_active', true)->orderBy('name')->get(['id', 'store_id', 'name']),
         ];
@@ -85,14 +86,16 @@ class ProductController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'], 'part_no' => ['nullable', 'string', 'max:255', Rule::unique('products', 'part_no')->ignore($product)],
-            'item_category_id' => ['nullable', 'exists:item_categories,id'], 'unit' => ['required', 'string', 'max:50'],
-            'unit_price' => ['required', 'numeric', 'min:0'], 'reorder_level' => ['nullable', 'numeric', 'min:0'], 'opening_date' => ['nullable', 'date'],
+            'segment_id' => ['nullable', 'exists:crm_segments,id'], 'item_category_id' => ['nullable', 'exists:item_categories,id'], 'unit' => ['required', 'string', 'max:50'],
+            'description' => ['nullable', 'string', 'max:10000'], 'technical_specification' => ['nullable', 'string', 'max:10000'],
+            'unit_price' => ['required', 'numeric', 'min:0'], 'commission_type' => ['required', Rule::in(['fixed', 'percent'])], 'unit_commission' => ['nullable', 'numeric', 'min:0'],
+            'reorder_level' => ['nullable', 'numeric', 'min:0'], 'opening_date' => ['nullable', 'date'],
             'opening_stocks' => ['nullable', 'array'], 'opening_stocks.*.store_id' => ['nullable', 'exists:stores,id'],
             'opening_stocks.*.store_position_id' => ['nullable', 'exists:store_positions,id'], 'opening_stocks.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
         $data['is_active'] = $request->boolean('is_active');
-        $data += ['category' => 'item', 'commission_type' => 'fixed', 'unit_commission' => 0, 'pieces_per_strip' => 1, 'sell_by_piece' => true, 'sell_by_strip' => false, 'reorder_level' => 0, 'opening_date' => now()->toDateString()];
+        $data += ['category' => 'item', 'unit_commission' => 0, 'pieces_per_strip' => 1, 'sell_by_piece' => true, 'sell_by_strip' => false, 'reorder_level' => 0, 'opening_date' => now()->toDateString()];
 
         return $data;
     }

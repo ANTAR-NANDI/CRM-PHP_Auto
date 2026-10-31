@@ -60,6 +60,7 @@ class StoreController extends Controller
             'code' => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9-]+$/', Rule::unique('stores', 'code')->ignore($store)],
             'phone' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:1000'],
+              'store_type' => ['required', Rule::in(['showroom', 'warehouse'])],
             'is_active' => ['nullable', 'boolean'],
         ]);
         $data['is_active'] = $request->boolean('is_active');

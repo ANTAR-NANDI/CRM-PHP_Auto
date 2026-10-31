@@ -13,12 +13,13 @@ class SalesReturnController
 {
     public function create(): View
     {
-        return view('sales-returns.create', ['sales' => CustomerVehicleSale::latest()->get(['id', 'sale_no', 'segment_id']), 'segments' => DB::table('crm_segments')->where('is_active', true)->get(), 'products' => Product::orderBy('name')->get(['id', 'name'])]);
+        return view('sales-returns.create', ['sales' => CustomerVehicleSale::query()->leftJoin('customers', 'customer_vehicle_sales.customer_id', '=', 'customers.id')->leftJoin('products', 'customer_vehicle_sales.product_id', '=', 'products.id')->select('customer_vehicle_sales.*', 'customers.name as customer_name', 'products.name as product_name')->latest('customer_vehicle_sales.sale_date')->get(), 'segments' => DB::table('crm_segments')->where('is_active', true)->get(), 'products' => Product::orderBy('name')->get(['id', 'name']), 'locations' => DB::table('crm_locations')->where('is_active', true)->orderBy('name')->get(['id', 'name'])]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate(['customer_vehicle_sale_id' => ['nullable', 'exists:customer_vehicle_sales,id'], 'segment_id' => ['nullable', 'exists:crm_segments,id'], 'return_date' => ['required', 'date'], 'engine_no' => ['nullable', 'string', 'max:100'], 'chassis_no' => ['nullable', 'string', 'max:100'], 'amount' => ['required', 'numeric', 'min:0'], 'remarks' => ['nullable', 'string', 'max:5000']]);
+        $data = $request->validate(['customer_vehicle_sale_id' => ['nullable', 'exists:customer_vehicle_sales,id'], 'segment_id' => ['nullable', 'exists:crm_segments,id'], 'return_date' => ['required', 'date'], 'transfer_to_dealer' => ['nullable', 'boolean'], 'location_id' => ['nullable', 'exists:crm_locations,id'], 'engine_no' => ['nullable', 'string', 'max:100'], 'chassis_no' => ['nullable', 'string', 'max:100'], 'amount' => ['required', 'numeric', 'min:0'], 'remarks' => ['nullable', 'string', 'max:5000']]);
+        $data['transfer_to_dealer'] = $request->boolean('transfer_to_dealer');
         DB::table('sales_returns')->insert($data + ['return_no' => 'SRT-'.now()->format('ymdHis'), 'created_at' => now(), 'updated_at' => now()]);
         return redirect()->route('sales-returns.index')->with('success', 'Sales return saved successfully.');
     }

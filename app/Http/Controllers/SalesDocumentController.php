@@ -54,14 +54,24 @@ class SalesDocumentController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate(['customer_vehicle_sale_id' => ['required', 'exists:customer_vehicle_sales,id'], 'title' => ['required', 'string', 'max:255'], 'file' => ['required', 'file', 'max:10240'], 'remarks' => ['nullable', 'string', 'max:5000']]);
-        $saleIsCleared = CustomerVehicleSale::query()->whereKey($data['customer_vehicle_sale_id'])->where('account_clearance_status', 'cleared')->exists();
-        if (! $saleIsCleared) {
-            return back()->withInput()->withErrors(['customer_vehicle_sale_id' => 'Accounts clearance is required before adding a delivery challan.']);
-        }
+        $data = $request->validate(['customer_vehicle_sale_id' => ['nullable', 'exists:customer_vehicle_sales,id'], 'title' => ['required', 'string', 'max:255'], 'file' => ['required', 'file', 'max:10240'], 'remarks' => ['nullable', 'string', 'max:5000']]);
         $file = $request->file('file');
         DB::table('sales_documents')->insert(['customer_vehicle_sale_id' => $data['customer_vehicle_sale_id'], 'title' => $data['title'], 'path' => $file->store('sales-documents', 'public'), 'original_name' => $file->getClientOriginalName(), 'remarks' => $data['remarks'] ?? null, 'user_id' => $request->user()->id, 'created_at' => now(), 'updated_at' => now()]);
         return redirect()->route('sales-documents.index')->with('success', 'Document uploaded successfully.');
+    }
+
+    public function edit(int $id)
+    {
+        return view('sales-documents.edit', ['document' => DB::table('sales_documents')->find($id)]);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $document = DB::table('sales_documents')->find($id); abort_unless($document, 404);
+        $data = $request->validate(['title' => ['required', 'string', 'max:255'], 'file' => ['nullable', 'file', 'max:10240'], 'remarks' => ['nullable', 'string', 'max:5000']]);
+        if ($request->hasFile('file')) { Storage::disk('public')->delete($document->path); $file = $request->file('file'); $data += ['path' => $file->store('sales-documents', 'public'), 'original_name' => $file->getClientOriginalName()]; }
+        unset($data['file']); DB::table('sales_documents')->where('id', $id)->update($data + ['updated_at' => now()]);
+        return redirect()->route('sales-documents.index')->with('success', 'Document updated successfully.');
     }
 
     public function export(int $id)

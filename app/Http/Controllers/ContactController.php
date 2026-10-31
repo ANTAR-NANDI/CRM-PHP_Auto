@@ -22,9 +22,14 @@ class ContactController extends Controller
         return view('contacts.index-actions', ['contacts' => $contacts, 'filters' => $filters, 'lookups' => $this->lookups()]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('contacts.create', ['lookups' => $this->lookups()]);
+        $lookups = $this->lookups();
+        $defaultContactTypeId = $request->query('type') === 'customer'
+            ? collect($lookups['types'])->firstWhere('name', 'Customer')?->id
+            : null;
+
+        return view('contacts.create', compact('lookups', 'defaultContactTypeId'));
     }
 
     public function store(Request $request): RedirectResponse

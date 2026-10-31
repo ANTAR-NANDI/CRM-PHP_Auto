@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\Dealer;
 use App\Models\Product;
+use App\Models\Store;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class DealerSaleController extends Controller
             'customers' => Customer::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'products' => Product::query()->select(['id', 'name', 'unit_price as selling_price'])->orderBy('name')->get(),
             'segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(),
+            'showrooms' => Store::where('is_active', true)->where('store_type', 'showroom')->orderBy('name')->get(['id', 'name', 'code']),
             'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }

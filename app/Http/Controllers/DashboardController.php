@@ -144,6 +144,7 @@ class DashboardController extends Controller
 
             return ['label' => $daysAgo === 0 ? 'Today' : $date->format('D'), 'date' => $date->format('d M'), 'total' => $booking + $collection];
         });
+        $handoverImages = CustomerVehicleSale::query()->with(['customer', 'product'])->whereNotNull('delivery_image_path')->latest('updated_at')->limit(10)->get();
 
         return view('dashboard', [
             'todaySales' => $todaySales,
@@ -199,6 +200,7 @@ class DashboardController extends Controller
             'weeklyReceipts' => $weeklyReceipts,
             'maxWeeklyReceipt' => max(1, (float) $weeklyReceipts->max('total')),
             'vehicleInventory' => $vehicleInventory,
+            'handoverImages' => $handoverImages,
         ]);
     }
 }

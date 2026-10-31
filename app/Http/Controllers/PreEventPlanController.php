@@ -21,11 +21,16 @@ class PreEventPlanController extends Controller
         return view('pre-event-plans.index', ['plans' => $plans, 'filters' => $filters, 'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name'])]);
     }
 
-    public function create(): View { return view('pre-event-plans.create', ['users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name'])]); }
+    public function create(): View { return view('pre-event-plans.create', ['plan' => new PreEventPlan(), 'users' => $this->users()]); }
 
     public function store(Request $request): RedirectResponse
     {
-        PreEventPlan::create($request->validate(['title' => ['required', 'string', 'max:255'], 'tentative_date' => ['nullable', 'date'], 'description' => ['nullable', 'string', 'max:5000'], 'remarks' => ['nullable', 'string', 'max:5000'], 'supervisor_id' => ['nullable', 'exists:users,id'], 'status' => ['required', 'in:pending,approved,in_progress,completed,cancelled']]));
+        PreEventPlan::create($this->validated($request));
         return redirect()->route('pre-event-plans.index')->with('success', 'Pre-event plan saved successfully.');
     }
+    public function edit(PreEventPlan $preEventPlan): View { return view('pre-event-plans.create', ['plan' => $preEventPlan, 'users' => $this->users()]); }
+    public function update(Request $request, PreEventPlan $preEventPlan): RedirectResponse { $preEventPlan->update($this->validated($request)); return redirect()->route('pre-event-plans.index')->with('success', 'Pre-event plan updated successfully.'); }
+    public function destroy(PreEventPlan $preEventPlan): RedirectResponse { $preEventPlan->delete(); return back()->with('success', 'Pre-event plan deleted successfully.'); }
+    private function users() { return User::where('is_active', true)->orderBy('name')->get(['id', 'name']); }
+    private function validated(Request $request): array { return $request->validate(['title' => ['required', 'string', 'max:255'], 'tentative_date' => ['nullable', 'date'], 'description' => ['nullable', 'string', 'max:5000'], 'remarks' => ['nullable', 'string', 'max:5000'], 'supervisor_id' => ['nullable', 'exists:users,id'], 'status' => ['required', 'in:pending,approved,in_progress,completed,cancelled']]); }
 }

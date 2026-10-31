@@ -94,7 +94,7 @@ class ActivityController extends Controller
             'todo_due_at' => ['required_if:keep_todo,1', 'nullable', 'date'],
             'todo_remind_before_minutes' => ['required_if:keep_todo,1', 'nullable', Rule::in([0, 5, 10, 15, 30, 60, 1440])],
             'todo_note' => ['nullable', 'string', 'max:5000'],
-            'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
+            'priority' => ['required_if:keep_todo,1', 'nullable', Rule::in(['low', 'medium', 'high'])],
             'attachment' => ['nullable', 'image', 'max:5120'],
         ]);
 

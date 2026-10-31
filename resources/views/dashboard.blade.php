@@ -1,6 +1,12 @@
 <x-app-layout>
 <x-slot name="header"><div class="flex items-center justify-between"><h1 class="text-lg font-bold uppercase text-[#4e6c9d]">Dashboard <span class="text-[11px] font-normal text-slate-400">quick overview</span></h1><span class="text-xs text-slate-500">{{ now()->format('d M Y') }}</span></div></x-slot>
 <style>.legacy-dashboard{display:none}</style>
+@if($handoverImages->isNotEmpty())
+<section x-data="{ active: 0, total: {{ $handoverImages->count() }}, next(){ this.active = (this.active + 1) % this.total }, previous(){ this.active = (this.active - 1 + this.total) % this.total } }" class="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex items-center justify-between border-b px-5 py-3"><div><h2 class="font-bold text-slate-800">Vehicle Handover Gallery</h2><p class="text-xs text-slate-500">Latest handover images from customer sales.</p></div><div class="flex gap-2"><button type="button" @click="previous" class="rounded border px-3 py-1 text-sm">←</button><button type="button" @click="next" class="rounded border px-3 py-1 text-sm">→</button></div></div>
+    <div class="relative h-64 bg-slate-100 sm:h-80">@foreach($handoverImages as $image)<figure x-show="active === {{ $loop->index }}" x-transition class="absolute inset-0"><img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($image->delivery_image_path) }}" alt="Vehicle handover for {{ $image->sale_no }}" class="h-full w-full object-contain"><figcaption class="absolute bottom-0 left-0 right-0 bg-slate-950/65 px-5 py-3 text-sm text-white">{{ $image->sale_no }} · {{ $image->customer?->name ?? 'Customer' }} · {{ $image->product?->name ?? 'Vehicle' }}</figcaption></figure>@endforeach</div>
+</section>
+@endif
 <div class="legacy-dashboard space-y-5">
 <section class="grid gap-4 xl:grid-cols-3">
 <article class="flex min-h-28 items-center gap-5 bg-[#5792c0] p-4 text-white"><div class="grid h-14 w-14 place-items-center bg-slate-900 text-xs font-bold">AUTO<br>CRM</div><div class="grid flex-1 grid-cols-2 gap-x-6 gap-y-4 text-center text-sm"><div><b class="block text-base">{{ number_format($todaySales,0) }}</b>Target</div><div><b class="block text-base">{{ number_format($todayProfit,0) }}</b>Achieved</div><div><b class="block text-base">{{ number_format($stockPieces) }}</b>Sales</div><div><b class="block text-base">{{ number_format($todayPurchases,0) }}</b>Collection</div></div></article>

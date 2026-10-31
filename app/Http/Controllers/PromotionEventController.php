@@ -9,13 +9,14 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class PromotionEventController extends Controller
 {
     public function create(): View
     {
-        return view('promotion-events.create', ['segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(), 'types' => EventType::where('is_active', true)->orderBy('name')->get(), 'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']), 'contacts' => Contact::orderBy('name')->limit(200)->get(['id', 'name', 'mobile_1'])]);
+        return view('promotion-events.create', ['event' => new PromotionEvent(), ...$this->references()]);
     }
 
     public function index(Request $request): View
@@ -28,9 +29,24 @@ class PromotionEventController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate(['segment_id' => ['nullable', 'exists:crm_segments,id'], 'event_type_id' => ['required', 'exists:event_types,id'], 'title' => ['required', 'string', 'max:255'], 'supervisor_id' => ['nullable', 'exists:users,id'], 'attendee_ids' => ['nullable', 'array'], 'attendee_ids.*' => ['integer', 'exists:contacts,id'], 'attachment' => ['nullable', 'file', 'max:5120'], 'start_date' => ['required', 'date'], 'end_date' => ['nullable', 'date', 'after_or_equal:start_date'], 'status' => ['required', 'in:upcoming,ongoing,completed,cancelled'], 'remarks' => ['nullable', 'string', 'max:5000']]);
+          $data = $this->validated($request);
         if ($request->hasFile('attachment')) $data['attachment_path'] = $request->file('attachment')->store('event-attachments', 'public');
         unset($data['attachment']); PromotionEvent::create($data);
         return redirect()->route('events.index')->with('success', 'Event/campaign saved successfully.');
     }
+      public function edit(PromotionEvent $event): View { return view('promotion-events.create', ['event' => $event, ...$this->references()]); }
+      public function update(Request $request, PromotionEvent $event): RedirectResponse
+      {
+          $data = $this->validated($request);
+          if ($request->hasFile('attachment')) {
+              if ($event->attachment_path) Storage::disk('public')->delete($event->attachment_path);
+              $data['attachment_path'] = $request->file('attachment')->store('event-attachments', 'public');
+          }
+          unset($data['attachment']);
+          $event->update($data);
+          return redirect()->route('events.index')->with('success', 'Event/campaign updated successfully.');
+      }
+      public function destroy(PromotionEvent $event): RedirectResponse { if ($event->attachment_path) Storage::disk('public')->delete($event->attachment_path); $event->delete(); return back()->with('success', 'Event/campaign deleted successfully.'); }
+      private function references(): array { return ['segments' => DB::table('crm_segments')->where('is_active', true)->orderBy('name')->get(), 'types' => EventType::where('is_active', true)->orderBy('name')->get(), 'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']), 'contacts' => Contact::orderBy('name')->limit(200)->get(['id', 'name', 'mobile_1'])]; }
+      private function validated(Request $request): array { return $request->validate(['segment_id' => ['nullable', 'exists:crm_segments,id'], 'event_type_id' => ['required', 'exists:event_types,id'], 'title' => ['required', 'string', 'max:255'], 'supervisor_id' => ['nullable', 'exists:users,id'], 'attendee_ids' => ['nullable', 'array'], 'attendee_ids.*' => ['integer', 'exists:contacts,id'], 'attachment' => ['nullable', 'file', 'max:5120'], 'start_date' => ['required', 'date'], 'end_date' => ['nullable', 'date', 'after_or_equal:start_date'], 'status' => ['required', 'in:upcoming,ongoing,completed,cancelled'], 'remarks' => ['nullable', 'string', 'max:5000']]); }
 }
